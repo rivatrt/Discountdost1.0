@@ -88,6 +88,13 @@
         .btn-gold { background: var(--gold-grad); color: #000; box-shadow: 0 15px 30px rgba(255, 193, 7, 0.3); }
         .ripple-effect { position: relative; overflow: hidden; transform: translate3d(0, 0, 0); }
 
+        /* EXPANDABLE MATH CARD */
+        .deal-card { transition: all 0.3s ease; cursor: pointer; }
+        .math-breakdown { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out, opacity 0.3s ease; opacity: 0; }
+        .deal-card.expanded .math-breakdown { max-height: 200px; opacity: 1; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px; }
+        .tap-hint { font-size: 9px; opacity: 0.5; margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px; transition: opacity 0.3s; }
+        .deal-card.expanded .tap-hint { opacity: 0; }
+
         /* NAV */
         .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: var(--nav-height); background: var(--bg-glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; align-items: center; padding-bottom: 20px; z-index: 600; }
         .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; color: var(--text-sub); transition: 0.3s; cursor: pointer; opacity: 0.5; }

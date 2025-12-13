@@ -159,6 +159,10 @@ window.app = {
         return "₹" + Math.round(n).toLocaleString('en-IN');
     },
 
+    toggleDeal: (el) => {
+        el.classList.toggle('expanded');
+    },
+
     renderResults: () => {
         const v = Number(state.visits);
         const a = Number(state.aov);
@@ -288,17 +292,15 @@ window.app = {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-                    const response = await fetch('https://api-inference.huggingface.co/models/impira/layoutlm-document-qa', {
+                    // Changed from Question-Answering to Text Recognition (TrOCR) for better full-menu parsing
+                    const response = await fetch('https://api-inference.huggingface.co/models/microsoft/trocr-base-printed', {
                         method: 'POST',
                         headers: { 
                             'Authorization': `Bearer ${state.apiKey}`,
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            inputs: {
-                                image: base64Content,
-                                question: "List all items and their prices."
-                            }
+                            inputs: base64Content
                         }),
                         signal: controller.signal
                     });
@@ -308,8 +310,11 @@ window.app = {
                     let scannedText = "";
                     if (response.ok) {
                         const result = await response.json();
-                        if (Array.isArray(result) && result[0]) {
-                            scannedText = result[0].answer;
+                        // TrOCR returns an array of objects like [{ generated_text: "..." }]
+                        if (Array.isArray(result) && result[0] && result[0].generated_text) {
+                            scannedText = result[0].generated_text;
+                        } else if (result.generated_text) {
+                             scannedText = result.generated_text;
                         }
                     }
 
@@ -324,7 +329,7 @@ window.app = {
                     console.warn("API Scan failed", err);
                     
                     // Fallback to empty prompt but let user know
-                    document.getElementById('menu-text').value = "2 Players 1800\n3 Players 2550\n4 Players 3150\n5 Players 3750\n(Example detected from image type)";
+                    document.getElementById('menu-text').value = "2 Players 1800\n3 Players 2550\n4 Players 3150\n5 Players 3750\n(Could not read image clearly. Please type.)";
                     window.app.toggleLoader(false);
                 }
             };
@@ -478,12 +483,12 @@ Tasks:
                 { threshold: Math.round(aov * 5.0), amount: Math.max(250, Math.round(aov * 1.5)), desc: "VIP Whale Reward" }
             ];
 
-            // Generate Repeat Cards
+            // Generate Repeat Cards (SORTED HIGH TO LOW)
             const repeatCards = [
-                { offer_title: "Silver Card", trigger: "Bill ₹" + Math.round(aov*0.5) + "-" + Math.round(aov), next_visit_min_spend: aov, next_visit_gold_reward: Math.max(40, Math.round(aov * 0.15)), tier: "Silver", description: "Convert low spenders" },
-                { offer_title: "Gold Card", trigger: "Bill ₹" + Math.round(aov) + "-" + Math.round(aov*1.5), next_visit_min_spend: Math.round(aov * 1.5), next_visit_gold_reward: Math.max(80, Math.round(aov * 0.30)), tier: "Gold", description: "Upsell regulars" },
-                { offer_title: "Platinum Card", trigger: "Bill > ₹" + Math.round(aov*2), next_visit_min_spend: Math.round(aov * 2.5), next_visit_gold_reward: Math.max(150, Math.round(aov * 0.6)), tier: "Platinum", description: "Retain high value" },
-                { offer_title: "Black Card", trigger: "VIP / Influencers", next_visit_min_spend: Math.round(aov * 3), next_visit_gold_reward: Math.max(300, Math.round(aov * 1.0)), tier: "Black", description: "Exclusive club" }
+                { offer_title: "Repeat Card", trigger: "Bill > ₹" + Math.round(aov * 3), next_visit_min_spend: Math.round(aov * 3.5), next_visit_gold_reward: Math.max(300, Math.round(aov * 1.0)), tier: "Black", description: "VIP / High Spenders" },
+                { offer_title: "Repeat Card", trigger: "Bill > ₹" + Math.round(aov * 2), next_visit_min_spend: Math.round(aov * 2.5), next_visit_gold_reward: Math.max(150, Math.round(aov * 0.6)), tier: "Platinum", description: "Big Groups" },
+                { offer_title: "Repeat Card", trigger: "Bill > ₹" + Math.round(aov * 1.2), next_visit_min_spend: Math.round(aov * 1.5), next_visit_gold_reward: Math.max(80, Math.round(aov * 0.30)), tier: "Gold", description: "Regulars" },
+                { offer_title: "Repeat Card", trigger: "Bill < ₹" + Math.round(aov), next_visit_min_spend: aov, next_visit_gold_reward: Math.max(40, Math.round(aov * 0.15)), tier: "Silver", description: "New Walk-ins" }
             ];
 
             state.strategy = { deals, vouchers, repeatCards };
@@ -506,7 +511,7 @@ Tasks:
                 <div style="width: 24px; height: 24px; background: #FF5722; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
                     <i class="fa fa-magnet"></i>
                 </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">10 Deals (Full Math)</span>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">10 Deals (Tap to See Math)</span>
             </div>
             <div>
         `;
@@ -517,13 +522,21 @@ Tasks:
             const price = deal.deal_price || deal.price || 0;
             // ENFORCE MIN GOLD UI
             const gold = Math.max(30, deal.gold || Math.round(price * 0.15));
-            const net = price - gold;
+            
+            // MATH UPDATE
+            // Merchant gives 'gold' as a discount on the platform.
+            // Platform Fee is 10% of the Deal Price (Revenue).
+            // GST is 18% of the Platform Fee.
+            
+            const platformFee = Math.round(price * 0.10);
+            const gstOnFee = Math.round(platformFee * 0.18);
+            const net = price - gold - platformFee - gstOnFee;
             
             html += `
-                <div class="card stagger-in" style="padding: 0; overflow: visible; margin-bottom: 25px; background: transparent; border: none; box-shadow: none; animation-delay: ${idx * 0.05}s;">
+                <div class="card stagger-in deal-card" onclick="app.toggleDeal(this)" style="padding: 0; overflow: visible; margin-bottom: 25px; background: transparent; border: none; box-shadow: none; animation-delay: ${idx * 0.05}s;">
                     <div style="background: var(--bg-surface); border-radius: 16px; overflow: hidden; position: relative; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
                         <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 6px; background: var(--gold-grad);"></div>
-                        <div style="padding: 20px 20px 0px 26px; display: flex; flex-direction: column; gap: 10px;">
+                        <div style="padding: 20px 20px 20px 26px; display: flex; flex-direction: column; gap: 10px;">
                             
                             <!-- Header -->
                             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -541,34 +554,42 @@ Tasks:
                                     <div style="background: var(--primary); color: var(--bg-body); border-radius: 8px; padding: 8px 12px; font-weight: 800; font-size: 16px; text-align: center;">
                                         ${window.app.fmt(price)}
                                     </div>
+                                    <div class="tap-hint">TAP FOR MATH</div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- MERCHANT BREAKDOWN -->
-                        <div style="margin-top: 15px; background: rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.05); padding: 15px 20px 15px 26px;">
-                            <div style="font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 8px;">Merchant Breakdown</div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-                                
-                                <div style="flex:1;">
-                                    <div style="font-size: 11px; color: #fff;">Bill Value</div>
-                                    <div style="font-size: 14px; font-weight: 700; color: #fff;">${window.app.fmt(price)}</div>
-                                </div>
+                        <!-- MERCHANT BREAKDOWN (HIDDEN BY DEFAULT) -->
+                        <div class="math-breakdown">
+                            <div style="font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 12px; display:flex; justify-content:space-between;">
+                                <span>Merchant Breakdown</span>
+                                <span><i class="fa fa-calculator"></i></span>
+                            </div>
+                            
+                            <!-- Row 1: Bill & Gold -->
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;">
+                                <span style="color:rgba(255,255,255,0.7);">Bill Value</span>
+                                <span style="font-weight:700;">${window.app.fmt(price)}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;">
+                                <span style="color:rgba(255,255,255,0.7);">Less: Gold Reward</span>
+                                <span style="font-weight:700; color:#FFB300;">- ${window.app.fmt(gold)}</span>
+                            </div>
 
-                                <div style="font-size: 14px; color: var(--text-sub);"><i class="fa fa-minus"></i></div>
+                             <!-- Row 2: Fees -->
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;">
+                                <span style="color:rgba(255,255,255,0.7);">Less: Platform Fee (10%)</span>
+                                <span style="font-weight:700; color:#FF5722;">- ${window.app.fmt(platformFee)}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 12px;">
+                                <span style="color:rgba(255,255,255,0.7);">Less: GST (18% on Fee)</span>
+                                <span style="font-weight:700; color:#FF5722;">- ${window.app.fmt(gstOnFee)}</span>
+                            </div>
 
-                                <div style="flex:1;">
-                                    <div style="font-size: 11px; color: #FFB300;">Gold Cost</div>
-                                    <div style="font-size: 14px; font-weight: 700; color: #FFB300;">${window.app.fmt(gold)}</div>
-                                </div>
-
-                                <div style="font-size: 14px; color: var(--text-sub);"><i class="fa fa-equals"></i></div>
-
-                                <div style="flex:1.5; background: rgba(0, 200, 83, 0.15); border: 1px solid rgba(0, 200, 83, 0.3); padding: 8px; border-radius: 8px; text-align: center;">
-                                    <div style="font-size: 9px; color: #00E676; font-weight: 800; text-transform: uppercase;">Your Net</div>
-                                    <div style="font-size: 16px; font-weight: 800; color: #00E676;">${window.app.fmt(net)}</div>
-                                </div>
-
+                            <!-- Net -->
+                             <div style="background: rgba(0, 200, 83, 0.1); border: 1px solid rgba(0, 200, 83, 0.3); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 11px; color: #00E676; font-weight: 800; text-transform: uppercase;">Your Net Earning</span>
+                                <span style="font-size: 16px; font-weight: 800; color: #00E676;">${window.app.fmt(net)}</span>
                             </div>
                         </div>
 
@@ -613,35 +634,39 @@ Tasks:
                 <div style="width: 24px; height: 24px; background: #4CAF50; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
                     <i class="fa fa-id-card"></i>
                 </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Loyalty (Editable)</span>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Repeat Card Strategies (High to Low)</span>
             </div>
             <div style="display: flex; flex-direction: column; gap: 15px;">
         `;
 
         const getCardColor = (tier) => {
             const t = tier?.toLowerCase() || "";
-            if (t.includes("black") || t.includes("platinum")) return "linear-gradient(135deg, #2c3e50, #000000)";
-            if (t.includes("gold")) return "linear-gradient(135deg, #FFC107, #FF9800)";
+            if (t.includes("black") || t.includes("vip")) return "linear-gradient(135deg, #2c3e50, #000000)";
+            if (t.includes("platinum") || t.includes("high")) return "linear-gradient(135deg, #455a64, #263238)";
+            if (t.includes("gold") || t.includes("mid")) return "linear-gradient(135deg, #FFC107, #FF9800)";
             return "linear-gradient(135deg, #bdc3c7, #2c3e50)";
         };
+        
+        // Sort descending by trigger amount just in case logic was mixed
+        s.repeatCards.sort((a,b) => (b.next_visit_min_spend || 0) - (a.next_visit_min_spend || 0));
 
         s.repeatCards.forEach((c, i) => {
             html += `
-                <div class="stagger-in" style="background: ${getCardColor(c.tier)}; border-radius: 16px; padding: 0; position: relative; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.3); color: #fff; display: flex; flex-direction: column;">
+                <div class="stagger-in" style="background: ${getCardColor(c.tier || c.description)}; border-radius: 16px; padding: 0; position: relative; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.3); color: #fff; display: flex; flex-direction: column;">
                     <div style="padding: 15px 20px; background: rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1);">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <div style="width: 30px; height: 22px; background: linear-gradient(135deg, #d4af37, #f1c40f); border-radius: 4px; opacity: 0.9; box-shadow: inset 0 0 5px rgba(0,0,0,0.3);"></div>
                             <span contenteditable="true" style="font-weight: 800; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; text-shadow: 0 2px 4px rgba(0,0,0,0.5); border-bottom: 1px dashed rgba(255,255,255,0.3);">${c.offer_title}</span>
                         </div>
-                        <div style="font-size: 11px; font-weight: 700; opacity: 0.8; text-transform: uppercase;">${c.tier}</div>
+                        <div style="font-size: 11px; font-weight: 700; opacity: 0.8; text-transform: uppercase;">${c.tier || "Tier"}</div>
                     </div>
                     <div style="padding: 20px;">
                         <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 15px;">
                             <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 16px;">
-                                <i class="fa fa-user-tag"></i>
+                                <i class="fa fa-hand-holding-dollar"></i>
                             </div>
                             <div>
-                                <div style="font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; font-weight: 700;">Target Audience</div>
+                                <div style="font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; font-weight: 700;">When to give Card?</div>
                                 <div contenteditable="true" style="font-size: 15px; font-weight: 700; border-bottom: 1px dashed rgba(255,255,255,0.3);">${c.trigger}</div>
                             </div>
                         </div>
@@ -650,7 +675,7 @@ Tasks:
                         </div>
                         <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <div style="font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; font-weight: 700;">Next Visit Goal</div>
+                                <div style="font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; font-weight: 700;">Goal (Next Visit)</div>
                                 <div style="font-size: 13px; font-weight: 600;">Spend <span contenteditable="true">${window.app.fmt(c.next_visit_min_spend)}</span></div>
                             </div>
                             <div style="text-align: right;">
