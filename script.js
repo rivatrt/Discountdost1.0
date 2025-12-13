@@ -397,7 +397,7 @@ Tasks:
                 },
                 body: JSON.stringify({
                     inputs: prompt,
-                    parameters: { max_new_tokens: 3500, return_full_text: false, temperature: 0.5 }
+                    parameters: { max_new_tokens: 3500, return_full_text: false, temperature: 0.4 }
                 })
             });
 
@@ -423,7 +423,9 @@ Tasks:
             const parsedItems = [];
             lines.forEach(line => {
                 // Find numbers at the end of string or separated by spaces
-                const match = line.match(/(.+?)[\s\-\:]+(\d+)/); 
+                // Added cleanup for "Bun Butter -" -> "Bun Butter"
+                let cleanLine = line.replace(/[+\-]/g, '').trim();
+                const match = cleanLine.match(/(.+?)[\s\:\.]+(\d+)/); 
                 if (match) {
                     parsedItems.push({
                         name: match[1].trim(),
@@ -441,42 +443,47 @@ Tasks:
             const prefixes = ["Mega", "Super", "Saver", "Family", "Duo", "Party", "Trial", "Premium", "Weekend", "Early Bird"];
             
             for(let i=0; i<10; i++) {
-                // Pick random items from validItems
+                // Determine if this should be a combo or single based on price
                 const item1 = validItems[i % validItems.length];
                 const item2 = validItems[(i+1) % validItems.length];
                 
-                let isCombo = i % 3 !== 0; // Every 3rd deal is single item
-                let realVal = isCombo ? (item1.price + item2.price) : item1.price;
-                let dealPrice = Math.round(realVal * 0.9); // 10% discount built-in usually? Or just list price
+                // If item price is high (like escape room), don't combo it
+                let isHighValue = item1.price > (aov * 0.7);
+                let isCombo = !isHighValue && (i % 3 !== 0); 
                 
-                // If the user input looks like "2 Players 1800", we shouldn't add them arbitrarily unless it makes sense.
-                // Simple logic: Just cycle through the items found.
+                let realVal = isCombo ? (item1.price + item2.price) : item1.price;
+                let dealPrice = Math.round(realVal * 0.9); // 10% discount built-in
+                
+                // MATH ENFORCEMENT
+                // Gold must be at least 30
+                let rawGold = Math.round(dealPrice * 0.15);
+                let gold = Math.max(30, rawGold);
                 
                 deals.push({
                     title: prefixes[i] + " " + (isCombo ? "Combo" : "Offer"),
                     items: isCombo ? `${item1.name} + ${item2.name}` : item1.name,
                     real_value: realVal,
                     deal_price: dealPrice,
-                    gold: Math.round(dealPrice * 0.15),
+                    gold: gold,
                     description: isCombo ? "Best value for money" : "Top selling item"
                 });
             }
 
             // Generate Vouchers
             const vouchers = [
-                { threshold: Math.round(aov * 1.5), amount: Math.round(aov * 0.3), desc: "Spend More, Get More (Mid)" },
-                { threshold: Math.round(aov * 2.5), amount: Math.round(aov * 0.6), desc: "High Roller Reward" },
-                { threshold: Math.round(aov * 3.5), amount: Math.round(aov * 0.8), desc: "Celebration Bonus" },
-                { threshold: Math.round(aov * 1.2), amount: Math.round(aov * 0.15), desc: "Easy Entry Reward" },
-                { threshold: Math.round(aov * 5.0), amount: Math.round(aov * 1.5), desc: "VIP Whale Reward" }
+                { threshold: Math.round(aov * 1.5), amount: Math.max(50, Math.round(aov * 0.3)), desc: "Spend More, Get More (Mid)" },
+                { threshold: Math.round(aov * 2.5), amount: Math.max(100, Math.round(aov * 0.6)), desc: "High Roller Reward" },
+                { threshold: Math.round(aov * 3.5), amount: Math.max(150, Math.round(aov * 0.8)), desc: "Celebration Bonus" },
+                { threshold: Math.round(aov * 1.2), amount: Math.max(40, Math.round(aov * 0.15)), desc: "Easy Entry Reward" },
+                { threshold: Math.round(aov * 5.0), amount: Math.max(250, Math.round(aov * 1.5)), desc: "VIP Whale Reward" }
             ];
 
             // Generate Repeat Cards
             const repeatCards = [
-                { offer_title: "Silver Card", trigger: "Bill ₹" + Math.round(aov*0.5) + "-" + Math.round(aov), next_visit_min_spend: aov, next_visit_gold_reward: Math.round(aov * 0.15), tier: "Silver", description: "Convert low spenders" },
-                { offer_title: "Gold Card", trigger: "Bill ₹" + Math.round(aov) + "-" + Math.round(aov*1.5), next_visit_min_spend: Math.round(aov * 1.5), next_visit_gold_reward: Math.round(aov * 0.30), tier: "Gold", description: "Upsell regulars" },
-                { offer_title: "Platinum Card", trigger: "Bill > ₹" + Math.round(aov*2), next_visit_min_spend: Math.round(aov * 2.5), next_visit_gold_reward: Math.round(aov * 0.6), tier: "Platinum", description: "Retain high value" },
-                { offer_title: "Black Card", trigger: "VIP / Influencers", next_visit_min_spend: Math.round(aov * 3), next_visit_gold_reward: Math.round(aov * 1.0), tier: "Black", description: "Exclusive club" }
+                { offer_title: "Silver Card", trigger: "Bill ₹" + Math.round(aov*0.5) + "-" + Math.round(aov), next_visit_min_spend: aov, next_visit_gold_reward: Math.max(40, Math.round(aov * 0.15)), tier: "Silver", description: "Convert low spenders" },
+                { offer_title: "Gold Card", trigger: "Bill ₹" + Math.round(aov) + "-" + Math.round(aov*1.5), next_visit_min_spend: Math.round(aov * 1.5), next_visit_gold_reward: Math.max(80, Math.round(aov * 0.30)), tier: "Gold", description: "Upsell regulars" },
+                { offer_title: "Platinum Card", trigger: "Bill > ₹" + Math.round(aov*2), next_visit_min_spend: Math.round(aov * 2.5), next_visit_gold_reward: Math.max(150, Math.round(aov * 0.6)), tier: "Platinum", description: "Retain high value" },
+                { offer_title: "Black Card", trigger: "VIP / Influencers", next_visit_min_spend: Math.round(aov * 3), next_visit_gold_reward: Math.max(300, Math.round(aov * 1.0)), tier: "Black", description: "Exclusive club" }
             ];
 
             state.strategy = { deals, vouchers, repeatCards };
@@ -499,22 +506,24 @@ Tasks:
                 <div style="width: 24px; height: 24px; background: #FF5722; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
                     <i class="fa fa-magnet"></i>
                 </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">10 Deals (Editable)</span>
-                <span style="font-size: 9px; background: #333; padding: 2px 6px; border-radius: 4px; color: #fff;">Tap text to edit</span>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">10 Deals (Full Math)</span>
             </div>
             <div>
         `;
 
         s.deals.forEach((deal, idx) => {
-            // Fill defaults if fallback missed them
+            // Recalculate if fields missing to prevent NaN
             const realVal = deal.real_value || Math.round(deal.price * 1.1) || 0;
             const price = deal.deal_price || deal.price || 0;
+            // ENFORCE MIN GOLD UI
+            const gold = Math.max(30, deal.gold || Math.round(price * 0.15));
+            const net = price - gold;
             
             html += `
-                <div class="card stagger-in" style="padding: 0; overflow: visible; margin-bottom: 20px; background: transparent; border: none; box-shadow: none; animation-delay: ${idx * 0.05}s;">
+                <div class="card stagger-in" style="padding: 0; overflow: visible; margin-bottom: 25px; background: transparent; border: none; box-shadow: none; animation-delay: ${idx * 0.05}s;">
                     <div style="background: var(--bg-surface); border-radius: 16px; overflow: hidden; position: relative; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
                         <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 6px; background: var(--gold-grad);"></div>
-                        <div style="padding: 20px 20px 20px 26px; display: flex; flex-direction: column; gap: 10px;">
+                        <div style="padding: 20px 20px 0px 26px; display: flex; flex-direction: column; gap: 10px;">
                             
                             <!-- Header -->
                             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -526,26 +535,43 @@ Tasks:
                                     <div contenteditable="true" style="font-size: 13px; color: var(--text-sub); border-bottom: 1px dashed rgba(255,255,255,0.2); display:inline-block; width:100%; margin-top:4px;">${deal.items}</div>
                                 </div>
                                 <div style="text-align: right; margin-left: 10px;">
-                                    <div style="background: var(--gold-grad); color: #000; border-radius: 8px; padding: 8px 12px; font-weight: 800; font-size: 14px; text-align: center;">
-                                        <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">GET</div>
-                                        <span contenteditable="true">${window.app.fmt(deal.gold)}</span>
+                                    <div style="background: var(--bg-input); color: var(--text-sub); border-radius: 8px; padding: 4px 8px; font-weight: 700; font-size: 11px; text-decoration: line-through; margin-bottom:4px;">
+                                        ${window.app.fmt(realVal)}
+                                    </div>
+                                    <div style="background: var(--primary); color: var(--bg-body); border-radius: 8px; padding: 8px 12px; font-weight: 800; font-size: 16px; text-align: center;">
+                                        ${window.app.fmt(price)}
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Math Breakdown -->
-                            <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px; margin-top: 5px; display: flex; justify-content: space-between; align-items: center;">
-                                <div style="text-align: center; flex: 1; border-right: 1px solid rgba(255,255,255,0.1);">
-                                    <div style="font-size: 9px; text-transform: uppercase; color: var(--text-sub); font-weight: 700;">Real Worth</div>
-                                    <div contenteditable="true" style="font-size: 13px; font-weight: 700; color: var(--text-sub); text-decoration: line-through;">${window.app.fmt(realVal)}</div>
-                                </div>
-                                <div style="text-align: center; flex: 1;">
-                                    <div style="font-size: 9px; text-transform: uppercase; color: var(--brand); font-weight: 700;">Deal Price</div>
-                                    <div contenteditable="true" style="font-size: 16px; font-weight: 800; color: var(--text-main);">${window.app.fmt(price)}</div>
-                                </div>
-                            </div>
-
                         </div>
+
+                        <!-- MERCHANT BREAKDOWN -->
+                        <div style="margin-top: 15px; background: rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.05); padding: 15px 20px 15px 26px;">
+                            <div style="font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 8px;">Merchant Breakdown</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                                
+                                <div style="flex:1;">
+                                    <div style="font-size: 11px; color: #fff;">Bill Value</div>
+                                    <div style="font-size: 14px; font-weight: 700; color: #fff;">${window.app.fmt(price)}</div>
+                                </div>
+
+                                <div style="font-size: 14px; color: var(--text-sub);"><i class="fa fa-minus"></i></div>
+
+                                <div style="flex:1;">
+                                    <div style="font-size: 11px; color: #FFB300;">Gold Cost</div>
+                                    <div style="font-size: 14px; font-weight: 700; color: #FFB300;">${window.app.fmt(gold)}</div>
+                                </div>
+
+                                <div style="font-size: 14px; color: var(--text-sub);"><i class="fa fa-equals"></i></div>
+
+                                <div style="flex:1.5; background: rgba(0, 200, 83, 0.15); border: 1px solid rgba(0, 200, 83, 0.3); padding: 8px; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 9px; color: #00E676; font-weight: 800; text-transform: uppercase;">Your Net</div>
+                                    <div style="font-size: 16px; font-weight: 800; color: #00E676;">${window.app.fmt(net)}</div>
+                                </div>
+
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             `;
