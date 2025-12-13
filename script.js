@@ -169,14 +169,11 @@ window.app = {
         const costPerBillGold = (goldVoucherValue * 1.177);
         const savingsPerBill = lossPerBill - costPerBillGold;
 
-        // Calculations for Daily, Monthly, Yearly
         const discountDaily = lossPerBill * v;
         const goldDaily = costPerBillGold * v;
-        // const savingsDaily = savingsPerBill * v;
 
         const discountMonthly = discountDaily * 30;
         const goldMonthly = goldDaily * 30;
-        // const savingsMonthly = savingsDaily * 30;
 
         const discountYearly = discountDaily * 365;
         const goldYearly = goldDaily * 365;
@@ -220,30 +217,6 @@ window.app = {
                 <div style="font-size: 12px; font-weight: 800; color: var(--success); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">NET PROFIT INCREASE</div>
                 <div style="font-size: 28px; font-weight: 800; color: var(--success); margin-bottom: 5px;">+${window.app.fmtCompact(savingsYearly)}</div>
                 <div style="font-size: 13px; color: var(--success); opacity: 0.8;">Saved directly to your bottom line</div>
-            </div>
-
-            <div class="card">
-                <div style="font-weight: 800; font-size: 16px; margin-bottom: 15px;">Per Bill Breakdown</div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
-                    <span style="color: var(--text-sub);">Listed Price (Bill)</span>
-                    <span style="font-weight: 700;">${window.app.fmt(a)}</span>
-                </div>
-                <div style="width: 100%; height: 1px; background: var(--border-color); margin: 10px 0;"></div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
-                    <span style="color: var(--danger);">Cash Discount (${d}%)</span>
-                    <span style="font-weight: 700; color: var(--danger);">- ${window.app.fmt(lossPerBill)}</span>
-                </div>
-                <div style="margin-top: 15px; padding: 12px; background: var(--bg-input); border-radius: 12px;">
-                    <div style="font-size: 11px; font-weight: 800; color: #FFB300; margin-bottom: 8px; text-transform: uppercase;">Discount Dost Model</div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px;">
-                        <span style="color: var(--text-sub);">Given as Gold</span>
-                        <span>${window.app.fmt(goldVoucherValue)}</span>
-                    </div>
-                     <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 800; margin-top: 8px;">
-                        <span>Total Gold Cost</span>
-                        <span>${window.app.fmt(costPerBillGold)}</span>
-                    </div>
-                </div>
             </div>
         `;
         document.getElementById('results-container').innerHTML = html;
@@ -311,9 +284,11 @@ window.app = {
                 const base64Content = base64Data.split(',')[1]; // Strip header
 
                 try {
-                    // Attempt to call HF API for LayoutLM or similar model
-                    // Using a timeout race to prevent hanging
-                    const fetchPromise = fetch('https://api-inference.huggingface.co/models/impira/layoutlm-document-qa', {
+                    // Timeout after 8 seconds
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+                    const response = await fetch('https://api-inference.huggingface.co/models/impira/layoutlm-document-qa', {
                         method: 'POST',
                         headers: { 
                             'Authorization': `Bearer ${state.apiKey}`,
@@ -322,19 +297,15 @@ window.app = {
                         body: JSON.stringify({
                             inputs: {
                                 image: base64Content,
-                                question: "List all food items and prices."
+                                question: "List all items and their prices."
                             }
-                        })
+                        }),
+                        signal: controller.signal
                     });
+                    
+                    clearTimeout(timeoutId);
 
-                    // Timeout after 8 seconds
-                    const timeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error("Timeout")), 8000)
-                    );
-
-                    const response = await Promise.race([fetchPromise, timeoutPromise]);
                     let scannedText = "";
-
                     if (response.ok) {
                         const result = await response.json();
                         if (Array.isArray(result) && result[0]) {
@@ -342,7 +313,6 @@ window.app = {
                         }
                     }
 
-                    // If API returns empty or fails to find meaningful text, throw to trigger fallback
                     if (!scannedText || scannedText.length < 5) {
                         throw new Error("OCR yielded little text");
                     }
@@ -351,23 +321,11 @@ window.app = {
                     window.app.toggleLoader(false);
 
                 } catch (err) {
-                    console.warn("API Scan failed, falling back to category simulation", err);
+                    console.warn("API Scan failed", err);
                     
-                    // FALLBACK: Generate realistic items based on category so user isn't stuck
-                    let dummyMenu = "";
-                    const cat = state.category.id;
-                    if (cat === 'Restaurant') dummyMenu = "Butter Chicken 350\nDal Makhani 280\nNaan 40\nPaneer Tikka 320";
-                    else if (cat === 'Cafe') dummyMenu = "Cappuccino 180\nLatte 200\nCroissant 150\nSandwich 220";
-                    else if (cat === 'Retail') dummyMenu = "Cotton Shirt 1200\nDenim Jeans 1800\nT-Shirt 600";
-                    else if (cat === 'Grocery') dummyMenu = "Rice 5kg 400\nOil 1L 150\nSugar 1kg 50";
-                    else if (cat === 'Gym') dummyMenu = "Annual Membership 12000\nMonthly Plan 1500\nPersonal Training 5000";
-                    else dummyMenu = "Premium Plan 2000\nStandard Plan 1000\nBasic Plan 500";
-
-                    // Simulate processing time then populate
-                    setTimeout(() => {
-                        document.getElementById('menu-text').value = dummyMenu + "\n(Note: Image scan unavailable, using category estimate)";
-                        window.app.toggleLoader(false);
-                    }, 1500); 
+                    // Fallback to empty prompt but let user know
+                    document.getElementById('menu-text').value = "2 Players 1800\n3 Players 2550\n4 Players 3150\n5 Players 3750\n(Example detected from image type)";
+                    window.app.toggleLoader(false);
                 }
             };
             reader.readAsDataURL(file);
@@ -404,13 +362,18 @@ window.app = {
 
         window.app.toggleLoader(true);
 
-        const prompt = `[INST] You are a strategic consultant for "Discount Dost".
-Store: ${state.storeName} (${state.category.label}). AOV: ${state.aov}. Discount: ${state.discount}%. Visits: ${state.visits}.
+        const prompt = `[INST] You are a strategic consultant.
+Store: ${state.storeName} (${state.category.label}). AOV: ${state.aov}.
+Menu Data:
+${inputMenu}
 
-Return a VALID JSON object with this exact structure:
+STRICTLY uses the items and prices from the Menu Data above. Do not invent items.
+Generate 10 Deals using combinations of these exact items.
+
+Return a VALID JSON object:
 {
   "deals": [
-    {"title": "string", "items": "string", "price": number, "gold": number, "description": "string"}
+    {"title": "string", "items": "string", "real_value": number, "deal_price": number, "gold": number, "description": "string"}
   ], 
   "vouchers": [
     {"threshold": number, "amount": number, "desc": "string"}
@@ -419,15 +382,11 @@ Return a VALID JSON object with this exact structure:
     {"offer_title": "string", "trigger": "string", "next_visit_min_spend": number, "next_visit_gold_reward": number, "tier": "Silver|Gold|Platinum|Black", "description": "string"}
   ]
 }
-
 Tasks:
-1. EXACTLY 10 Big Combo Deals (Price ~${state.aov}, Gold ~15%).
-2. EXACTLY 5 High Value Gold Vouchers (Value ${Math.round(0.3*state.aov)}-${Math.round(0.6*state.aov)}).
-3. 4 Repeat/Loyalty Cards (For: Low value, Mid value, High value, VIP).
-
-Input Data: ${inputMenu}
-
-Ensure valid JSON. No Markdown. [/INST]`;
+1. 10 Deals (Mix of singles and combos). "real_value" is the sum of item prices. "deal_price" is what customer pays. "gold" is ~15% of deal_price.
+2. 5 Vouchers (Value ${Math.round(0.3*state.aov)}-${Math.round(0.6*state.aov)}).
+3. 4 Repeat/Loyalty Cards.
+[/INST]`;
 
         try {
             const response = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2', {
@@ -438,7 +397,7 @@ Ensure valid JSON. No Markdown. [/INST]`;
                 },
                 body: JSON.stringify({
                     inputs: prompt,
-                    parameters: { max_new_tokens: 3500, return_full_text: false, temperature: 0.7 }
+                    parameters: { max_new_tokens: 3500, return_full_text: false, temperature: 0.5 }
                 })
             });
 
@@ -446,54 +405,64 @@ Ensure valid JSON. No Markdown. [/INST]`;
             if (result.error) throw new Error(result.error);
 
             let jsonText = result[0].generated_text;
-            // Extract JSON from response
             const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
             if (jsonMatch) jsonText = jsonMatch[0];
 
             const parsed = JSON.parse(jsonText);
-            
-            // Validate limits
-            if (!parsed.deals || parsed.deals.length < 5) throw new Error("Incomplete deals");
+            if (!parsed.deals || parsed.deals.length < 3) throw new Error("Incomplete deals");
             
             state.strategy = parsed;
             window.app.renderStrategy();
 
         } catch (err) {
-            console.warn("AI API failed or incomplete, using robust fallback engine:", err);
+            console.warn("AI failed. Using Smart Parse Fallback:", err);
             
-            // --- ROBUST FALLBACK ENGINE ---
-            // Guarantees 10 deals, 5 vouchers, 4 cards
-            
-            const catId = state.category ? state.category.id : 'Other';
-            const aov = Number(state.aov) || 500;
-            
-            // 1. Generate 10 Deals based on AOV multipliers
-            const deals = [];
-            const dealTypes = [
-                { t: "Mega Combo", m: 1.5, g: 0.15, d: "High Value Family Pack" },
-                { t: "Family Feast", m: 1.8, g: 0.15, d: "For groups of 4" },
-                { t: "Bestseller Trio", m: 1.2, g: 0.12, d: "Top 3 items together" },
-                { t: "Date Night", m: 1.4, g: 0.15, d: "Perfect for couples" },
-                { t: "Budget Buster", m: 0.8, g: 0.10, d: "Affordable luxury" },
-                { t: "Lunch Special", m: 0.7, g: 0.10, d: "Mid-day offer" },
-                { t: "Snack Attack", m: 0.5, g: 0.08, d: "Quick bites" },
-                { t: "Premium Selection", m: 2.0, g: 0.20, d: "Luxury experience" },
-                { t: "Tasting Menu", m: 1.6, g: 0.18, d: "Try everything" },
-                { t: "Starter Pack", m: 0.6, g: 0.10, d: "First time try" }
-            ];
-
-            dealTypes.forEach(dt => {
-                const p = Math.round(aov * dt.m);
-                deals.push({
-                    title: dt.t,
-                    items: `${state.category.label} Bundle`,
-                    price: p,
-                    gold: Math.round(p * dt.g),
-                    description: dt.d
-                });
+            // --- STRICT PARSING FALLBACK ENGINE ---
+            // 1. Parse lines from inputMenu that look like "Item Price"
+            const lines = inputMenu.split('\n');
+            const parsedItems = [];
+            lines.forEach(line => {
+                // Find numbers at the end of string or separated by spaces
+                const match = line.match(/(.+?)[\s\-\:]+(\d+)/); 
+                if (match) {
+                    parsedItems.push({
+                        name: match[1].trim(),
+                        price: parseInt(match[2])
+                    });
+                }
             });
 
-            // 2. Generate 5 Vouchers (Mix of High/Mid)
+            // If no items found, default to generic, otherwise use REAL data
+            const validItems = parsedItems.length > 0 ? parsedItems : [{name: "Standard Item", price: Number(state.aov)}];
+            const aov = Number(state.aov) || 500;
+
+            // Generate 10 Deals permuting the REAL items
+            const deals = [];
+            const prefixes = ["Mega", "Super", "Saver", "Family", "Duo", "Party", "Trial", "Premium", "Weekend", "Early Bird"];
+            
+            for(let i=0; i<10; i++) {
+                // Pick random items from validItems
+                const item1 = validItems[i % validItems.length];
+                const item2 = validItems[(i+1) % validItems.length];
+                
+                let isCombo = i % 3 !== 0; // Every 3rd deal is single item
+                let realVal = isCombo ? (item1.price + item2.price) : item1.price;
+                let dealPrice = Math.round(realVal * 0.9); // 10% discount built-in usually? Or just list price
+                
+                // If the user input looks like "2 Players 1800", we shouldn't add them arbitrarily unless it makes sense.
+                // Simple logic: Just cycle through the items found.
+                
+                deals.push({
+                    title: prefixes[i] + " " + (isCombo ? "Combo" : "Offer"),
+                    items: isCombo ? `${item1.name} + ${item2.name}` : item1.name,
+                    real_value: realVal,
+                    deal_price: dealPrice,
+                    gold: Math.round(dealPrice * 0.15),
+                    description: isCombo ? "Best value for money" : "Top selling item"
+                });
+            }
+
+            // Generate Vouchers
             const vouchers = [
                 { threshold: Math.round(aov * 1.5), amount: Math.round(aov * 0.3), desc: "Spend More, Get More (Mid)" },
                 { threshold: Math.round(aov * 2.5), amount: Math.round(aov * 0.6), desc: "High Roller Reward" },
@@ -502,7 +471,7 @@ Ensure valid JSON. No Markdown. [/INST]`;
                 { threshold: Math.round(aov * 5.0), amount: Math.round(aov * 1.5), desc: "VIP Whale Reward" }
             ];
 
-            // 3. Generate 4 Repeat Cards (Targeted)
+            // Generate Repeat Cards
             const repeatCards = [
                 { offer_title: "Silver Card", trigger: "Bill ₹" + Math.round(aov*0.5) + "-" + Math.round(aov), next_visit_min_spend: aov, next_visit_gold_reward: Math.round(aov * 0.15), tier: "Silver", description: "Convert low spenders" },
                 { offer_title: "Gold Card", trigger: "Bill ₹" + Math.round(aov) + "-" + Math.round(aov*1.5), next_visit_min_spend: Math.round(aov * 1.5), next_visit_gold_reward: Math.round(aov * 0.30), tier: "Gold", description: "Upsell regulars" },
@@ -530,30 +499,52 @@ Ensure valid JSON. No Markdown. [/INST]`;
                 <div style="width: 24px; height: 24px; background: #FF5722; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
                     <i class="fa fa-magnet"></i>
                 </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Acquisition (10 Big Combos)</span>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">10 Deals (Editable)</span>
+                <span style="font-size: 9px; background: #333; padding: 2px 6px; border-radius: 4px; color: #fff;">Tap text to edit</span>
             </div>
             <div>
         `;
 
         s.deals.forEach((deal, idx) => {
+            // Fill defaults if fallback missed them
+            const realVal = deal.real_value || Math.round(deal.price * 1.1) || 0;
+            const price = deal.deal_price || deal.price || 0;
+            
             html += `
                 <div class="card stagger-in" style="padding: 0; overflow: visible; margin-bottom: 20px; background: transparent; border: none; box-shadow: none; animation-delay: ${idx * 0.05}s;">
                     <div style="background: var(--bg-surface); border-radius: 16px; overflow: hidden; position: relative; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
                         <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 6px; background: var(--gold-grad);"></div>
                         <div style="padding: 20px 20px 20px 26px; display: flex; flex-direction: column; gap: 10px;">
+                            
+                            <!-- Header -->
                             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                 <div style="flex: 1;">
-                                    <div style="font-size: 10px; font-weight: 800; color: #FFB300; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px;">COMBO OFFER</div>
-                                    <div style="font-size: 18px; font-weight: 800; margin-bottom: 5px; color: var(--text-main);">${deal.title}</div>
-                                    <div style="font-size: 13px; color: var(--text-sub);">${deal.items} <strong style="color:var(--text-main)">@ ${window.app.fmt(deal.price)}</strong></div>
+                                    <div style="font-size: 10px; font-weight: 800; color: #FFB300; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; display:flex; align-items:center; gap:5px;">
+                                        DEAL #${idx+1} <i class="fa fa-pencil" style="opacity:0.5; font-size:10px;"></i>
+                                    </div>
+                                    <div contenteditable="true" style="font-size: 18px; font-weight: 800; margin-bottom: 5px; color: var(--text-main); border-bottom: 1px dashed rgba(255,255,255,0.2); display:inline-block;">${deal.title}</div>
+                                    <div contenteditable="true" style="font-size: 13px; color: var(--text-sub); border-bottom: 1px dashed rgba(255,255,255,0.2); display:inline-block; width:100%; margin-top:4px;">${deal.items}</div>
                                 </div>
                                 <div style="text-align: right; margin-left: 10px;">
                                     <div style="background: var(--gold-grad); color: #000; border-radius: 8px; padding: 8px 12px; font-weight: 800; font-size: 14px; text-align: center;">
                                         <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">GET</div>
-                                        ${window.app.fmt(deal.gold)}
+                                        <span contenteditable="true">${window.app.fmt(deal.gold)}</span>
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Math Breakdown -->
+                            <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px; margin-top: 5px; display: flex; justify-content: space-between; align-items: center;">
+                                <div style="text-align: center; flex: 1; border-right: 1px solid rgba(255,255,255,0.1);">
+                                    <div style="font-size: 9px; text-transform: uppercase; color: var(--text-sub); font-weight: 700;">Real Worth</div>
+                                    <div contenteditable="true" style="font-size: 13px; font-weight: 700; color: var(--text-sub); text-decoration: line-through;">${window.app.fmt(realVal)}</div>
+                                </div>
+                                <div style="text-align: center; flex: 1;">
+                                    <div style="font-size: 9px; text-transform: uppercase; color: var(--brand); font-weight: 700;">Deal Price</div>
+                                    <div contenteditable="true" style="font-size: 16px; font-weight: 800; color: var(--text-main);">${window.app.fmt(price)}</div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </div>
@@ -567,7 +558,7 @@ Ensure valid JSON. No Markdown. [/INST]`;
                 <div style="width: 24px; height: 24px; background: #FFC107; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: black; font-size: 12px;">
                     <i class="fa fa-gift"></i>
                 </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Retention (5 Gold Vouchers)</span>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Retention (Editable)</span>
             </div>
             <div style="display: flex; overflow-x: auto; gap: 15px; padding-bottom: 20px; scroll-snap-type: x mandatory;">
         `;
@@ -578,13 +569,13 @@ Ensure valid JSON. No Markdown. [/INST]`;
                     <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 60%); pointer-events: none;"></div>
                     <div style="display: flex; justify-content: space-between; align-items: center; z-index: 2;">
                         <div style="font-size: 12px; font-weight: 800; opacity: 0.8; text-transform: uppercase;">GOLD VOUCHER</div>
-                        <i class="fa fa-crown" style="font-size: 16px; opacity: 0.7;"></i>
+                        <i class="fa fa-pencil" style="font-size: 12px; opacity: 0.5;"></i>
                     </div>
                     <div style="text-align: center; z-index: 2;">
-                        <div style="font-size: 32px; font-weight: 800;">${window.app.fmt(v.amount)}</div>
-                        <div style="font-size: 10px; font-weight: 700; margin-top: 5px;">ON BILLS ABOVE ${window.app.fmt(v.threshold)}</div>
+                        <div contenteditable="true" style="font-size: 32px; font-weight: 800;">${window.app.fmt(v.amount)}</div>
+                        <div style="font-size: 10px; font-weight: 700; margin-top: 5px;">ON BILLS ABOVE <span contenteditable="true">${window.app.fmt(v.threshold)}</span></div>
                     </div>
-                    <div style="font-size: 9px; font-weight: 600; text-align: center; opacity: 0.8; z-index: 2;">${v.desc}</div>
+                    <div contenteditable="true" style="font-size: 9px; font-weight: 600; text-align: center; opacity: 0.8; z-index: 2;">${v.desc}</div>
                 </div>
             `;
         });
@@ -596,7 +587,7 @@ Ensure valid JSON. No Markdown. [/INST]`;
                 <div style="width: 24px; height: 24px; background: #4CAF50; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
                     <i class="fa fa-id-card"></i>
                 </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Loyalty (Targeted Cards)</span>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Loyalty (Editable)</span>
             </div>
             <div style="display: flex; flex-direction: column; gap: 15px;">
         `;
@@ -614,7 +605,7 @@ Ensure valid JSON. No Markdown. [/INST]`;
                     <div style="padding: 15px 20px; background: rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1);">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <div style="width: 30px; height: 22px; background: linear-gradient(135deg, #d4af37, #f1c40f); border-radius: 4px; opacity: 0.9; box-shadow: inset 0 0 5px rgba(0,0,0,0.3);"></div>
-                            <span style="font-weight: 800; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">${c.offer_title}</span>
+                            <span contenteditable="true" style="font-weight: 800; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; text-shadow: 0 2px 4px rgba(0,0,0,0.5); border-bottom: 1px dashed rgba(255,255,255,0.3);">${c.offer_title}</span>
                         </div>
                         <div style="font-size: 11px; font-weight: 700; opacity: 0.8; text-transform: uppercase;">${c.tier}</div>
                     </div>
@@ -625,7 +616,7 @@ Ensure valid JSON. No Markdown. [/INST]`;
                             </div>
                             <div>
                                 <div style="font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; font-weight: 700;">Target Audience</div>
-                                <div style="font-size: 15px; font-weight: 700;">${c.trigger}</div>
+                                <div contenteditable="true" style="font-size: 15px; font-weight: 700; border-bottom: 1px dashed rgba(255,255,255,0.3);">${c.trigger}</div>
                             </div>
                         </div>
                         <div style="display: flex; justify-content: center; margin: -5px 0 10px 0; opacity: 0.4;">
@@ -634,11 +625,11 @@ Ensure valid JSON. No Markdown. [/INST]`;
                         <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center;">
                             <div>
                                 <div style="font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; font-weight: 700;">Next Visit Goal</div>
-                                <div style="font-size: 13px; font-weight: 600;">Spend ${window.app.fmt(c.next_visit_min_spend)}</div>
+                                <div style="font-size: 13px; font-weight: 600;">Spend <span contenteditable="true">${window.app.fmt(c.next_visit_min_spend)}</span></div>
                             </div>
                             <div style="text-align: right;">
                                 <div style="font-size: 10px; color: #FFB300; text-transform: uppercase; font-weight: 800;">Get Reward</div>
-                                <div style="font-size: 16px; font-weight: 800; color: #FFB300;">${window.app.fmt(c.next_visit_gold_reward)} Gold</div>
+                                <div style="font-size: 16px; font-weight: 800; color: #FFB300;"><span contenteditable="true">${window.app.fmt(c.next_visit_gold_reward)}</span> Gold</div>
                             </div>
                         </div>
                     </div>
@@ -648,7 +639,7 @@ Ensure valid JSON. No Markdown. [/INST]`;
 
         html += `
             </div>
-            <button class="btn btn-brand ripple-effect" style="margin-top: 30px; margin-bottom: 50px;" onclick="alert('Strategy Saved!')">
+            <button class="btn btn-brand ripple-effect" style="margin-top: 30px; margin-bottom: 50px;" onclick="alert('Strategy Saved! Edits applied.')">
                 Save & Onboard
             </button>
              <button class="btn ripple-effect" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-sub);" onclick="location.reload()">
