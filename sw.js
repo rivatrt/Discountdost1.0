@@ -1,4 +1,4 @@
-const CACHE_NAME = 'discount-dost-v5';
+const CACHE_NAME = 'discount-dost-v6';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

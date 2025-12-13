@@ -25,12 +25,13 @@ const state = {
     strategy: null,
     loaderInterval: null,
     manualItems: [{name:"", price:""}, {name:"", price:""}, {name:"", price:""}],
-    installPrompt: null
+    installPrompt: null,
+    cooldownTimer: null
 };
 
-// Try to load API Key safely
+// Try to load API Key safely (GEMINI KEY)
 try {
-    state.apiKey = localStorage.getItem('discount_dost_hf_key');
+    state.apiKey = localStorage.getItem('discount_dost_gemini_key');
 } catch (e) {
     console.warn("LocalStorage access denied");
 }
@@ -97,13 +98,13 @@ window.app = {
 
     saveApiKey: () => {
         try {
-            const input = document.getElementById('hf-key-input');
+            const input = document.getElementById('gemini-key-input');
             if (!input) return;
             
             const key = input.value.trim();
             if (key.length > 5) {
                 try {
-                    localStorage.setItem('discount_dost_hf_key', key);
+                    localStorage.setItem('discount_dost_gemini_key', key);
                 } catch (e) {
                     console.warn("Could not save to localStorage");
                 }
@@ -365,7 +366,30 @@ window.app = {
         return items.map(i => `${i.n} ${Math.round(aov * i.p)}`).join('\n');
     },
 
-    // --- IMAGE HANDLING & AI ---
+    // --- COOLDOWN HANDLING (429 ERRORS) ---
+    triggerCooldown: () => {
+        window.app.toggleLoader(false);
+        const overlay = document.getElementById('cooldown-overlay');
+        const timerEl = document.getElementById('cooldown-timer');
+        if(!overlay) return;
+
+        overlay.style.display = 'flex';
+        let timeLeft = 60;
+        timerEl.innerText = timeLeft;
+
+        if (state.cooldownTimer) clearInterval(state.cooldownTimer);
+        
+        state.cooldownTimer = setInterval(() => {
+            timeLeft--;
+            timerEl.innerText = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(state.cooldownTimer);
+                overlay.style.display = 'none';
+            }
+        }, 1000);
+    },
+
+    // --- IMAGE HANDLING & AI (GEMINI) ---
     handleFile: async (input) => {
         if (input.files && input.files[0]) {
             const file = input.files[0];
@@ -380,51 +404,38 @@ window.app = {
                 const base64Content = base64Data.split(',')[1]; // Strip header
 
                 try {
-                    // Timeout after 12 seconds for better model
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-                    // UPGRADED to LLaVA (Vision Language Model) for better context
-                    const response = await fetch('https://api-inference.huggingface.co/models/llava-hf/llava-1.5-7b-hf', {
+                    // GEMINI API REQUEST (Scanning)
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${state.apiKey}`, {
                         method: 'POST',
-                        headers: { 
-                            'Authorization': `Bearer ${state.apiKey}`,
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            inputs: `USER: <image>\nList all menu items and their prices from this image.\nASSISTANT:`,
-                            parameters: {
-                                images: [base64Content]
-                            }
-                        }),
-                        signal: controller.signal
+                            contents: [{
+                                parts: [
+                                    { text: "Extract list of menu items and prices. Output simple text list." },
+                                    { inline_data: { mime_type: "image/jpeg", data: base64Content } }
+                                ]
+                            }]
+                        })
                     });
-                    
-                    clearTimeout(timeoutId);
 
-                    let scannedText = "";
-                    if (response.ok) {
-                        const result = await response.json();
-                        if (Array.isArray(result) && result[0] && result[0].generated_text) {
-                            scannedText = result[0].generated_text.replace(/USER:|ASSISTANT:/g, '');
-                        }
+                    // Handle 429
+                    if (response.status === 429) {
+                        window.app.triggerCooldown();
+                        return;
                     }
 
-                    if (!scannedText || scannedText.length < 5) {
-                        throw new Error("OCR yielded little text");
-                    }
+                    const result = await response.json();
+                    let scannedText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+                    if (!scannedText || scannedText.length < 5) throw new Error("OCR yielded little text");
 
                     document.getElementById('menu-text').value = scannedText.trim();
                     window.app.toggleLoader(false);
 
                 } catch (err) {
                     console.warn("AI Scan failed. Using Smart Fallback.", err);
-                    
-                    // SMART FALLBACK: Generate realistic data based on category so it doesn't look like "same data"
                     const fallbackData = window.app.getFallbackMenu(state.category.id);
                     document.getElementById('menu-text').value = fallbackData;
-                    
-                    // Optional: Show small toast or message?
                     if(textEl) textEl.innerText = "Auto-detecting items...";
                     setTimeout(() => window.app.toggleLoader(false), 800);
                 }
@@ -433,7 +444,7 @@ window.app = {
         }
     },
 
-    // --- AI ANALYSIS ---
+    // --- AI ANALYSIS (GEMINI) ---
     toggleLoader: (show) => {
         const loader = document.getElementById('loader');
         if (show) {
@@ -463,51 +474,42 @@ window.app = {
 
         window.app.toggleLoader(true);
 
-        const prompt = `[INST] You are a strategic consultant.
-Store: ${state.storeName} (${state.category.label}). AOV: ${state.aov}.
-Menu Data:
+        // GEMINI PROMPT - OPTIMIZED FOR TOKENS
+        const prompt = `Act as strategist. Store: ${state.storeName} (${state.category.label}). AOV: ${state.aov}.
+Menu:
 ${inputMenu}
 
-STRICTLY uses the items and prices from the Menu Data above. Do not invent items.
-Generate 10 Deals using combinations of these exact items.
-
-Return a VALID JSON object:
+Create JSON strategy using ONLY these items.
 {
-  "deals": [
-    {"title": "string", "items": "string", "real_value": number, "deal_price": number, "gold": number, "description": "string"}
-  ], 
-  "vouchers": [
-    {"threshold": number, "amount": number, "desc": "string"}
-  ], 
-  "repeatCards": [
-    {"offer_title": "string", "trigger": "string", "next_visit_min_spend": number, "next_visit_gold_reward": number, "tier": "Silver|Gold|Platinum|Black", "description": "string"}
-  ]
+  "deals": [{"title": "Combo/Offer Name", "items": "Item names", "real_value": number, "deal_price": number, "gold": number}], 
+  "vouchers": [{"threshold": number, "amount": number, "desc": "string"}], 
+  "repeatCards": [{"trigger": "string", "next_visit_min_spend": number, "next_visit_gold_reward": number, "tier": "Silver|Gold|Platinum|Black", "description": "string"}]
 }
-Tasks:
-1. 10 Deals (Mix of singles and combos). "real_value" is the sum of item prices. "deal_price" is what customer pays. "gold" is ~15% of deal_price.
-2. 5 Vouchers (Value ${Math.round(0.3*state.aov)}-${Math.round(0.6*state.aov)}).
-3. 4 Repeat/Loyalty Cards.
-[/INST]`;
+Rules:
+1. 10 Deals. deal_price ~90% of real_value. gold ~15% of deal_price (min 30).
+2. 5 Vouchers (Value 30-60% of AOV).
+3. 4 Repeat Cards.`;
 
         try {
-            const response = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2', {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${state.apiKey}`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${state.apiKey}`,
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    inputs: prompt,
-                    parameters: { max_new_tokens: 3500, return_full_text: false, temperature: 0.4 }
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: { responseMimeType: "application/json" }
                 })
             });
 
-            const result = await response.json();
-            if (result.error) throw new Error(result.error);
+            // Handle 429
+            if (response.status === 429) {
+                window.app.triggerCooldown();
+                return;
+            }
 
-            let jsonText = result[0].generated_text;
-            const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-            if (jsonMatch) jsonText = jsonMatch[0];
+            const result = await response.json();
+            const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+            
+            if (!jsonText) throw new Error("Empty AI response");
 
             const parsed = JSON.parse(jsonText);
             if (!parsed.deals || parsed.deals.length < 3) throw new Error("Incomplete deals");
@@ -519,12 +521,9 @@ Tasks:
             console.warn("AI failed. Using Smart Parse Fallback:", err);
             
             // --- STRICT PARSING FALLBACK ENGINE ---
-            // 1. Parse lines from inputMenu that look like "Item Price"
             const lines = inputMenu.split('\n');
             const parsedItems = [];
             lines.forEach(line => {
-                // Find numbers at the end of string or separated by spaces
-                // Added cleanup for "Bun Butter -" -> "Bun Butter"
                 let cleanLine = line.replace(/[+\-]/g, '').trim();
                 const match = cleanLine.match(/(.+?)[\s\:\.]+(\d+)/); 
                 if (match) {
@@ -535,28 +534,20 @@ Tasks:
                 }
             });
 
-            // If no items found, default to generic, otherwise use REAL data
             const validItems = parsedItems.length > 0 ? parsedItems : [{name: "Standard Item", price: Number(state.aov)}];
             const aov = Number(state.aov) || 500;
 
-            // Generate 10 Deals permuting the REAL items
             const deals = [];
             const prefixes = ["Mega", "Super", "Saver", "Family", "Duo", "Party", "Trial", "Premium", "Weekend", "Early Bird"];
             
             for(let i=0; i<10; i++) {
-                // Determine if this should be a combo or single based on price
                 const item1 = validItems[i % validItems.length];
                 const item2 = validItems[(i+1) % validItems.length];
-                
-                // If item price is high (like escape room), don't combo it
                 let isHighValue = item1.price > (aov * 0.7);
                 let isCombo = !isHighValue && (i % 3 !== 0); 
                 
                 let realVal = isCombo ? (item1.price + item2.price) : item1.price;
-                let dealPrice = Math.round(realVal * 0.9); // 10% discount built-in
-                
-                // MATH ENFORCEMENT
-                // Gold must be at least 30
+                let dealPrice = Math.round(realVal * 0.9);
                 let rawGold = Math.round(dealPrice * 0.15);
                 let gold = Math.max(30, rawGold);
                 
@@ -570,7 +561,6 @@ Tasks:
                 });
             }
 
-            // Generate Vouchers
             const vouchers = [
                 { threshold: Math.round(aov * 1.5), amount: Math.max(50, Math.round(aov * 0.3)), desc: "Spend More, Get More (Mid)" },
                 { threshold: Math.round(aov * 2.5), amount: Math.max(100, Math.round(aov * 0.6)), desc: "High Roller Reward" },
@@ -579,7 +569,6 @@ Tasks:
                 { threshold: Math.round(aov * 5.0), amount: Math.max(250, Math.round(aov * 1.5)), desc: "VIP Whale Reward" }
             ];
 
-            // Generate Repeat Cards (SORTED HIGH TO LOW)
             const repeatCards = [
                 { offer_title: "Repeat Card", trigger: "Bill > ₹" + Math.round(aov * 3), next_visit_min_spend: Math.round(aov * 3.5), next_visit_gold_reward: Math.max(300, Math.round(aov * 1.0)), tier: "Black", description: "VIP / High Spenders" },
                 { offer_title: "Repeat Card", trigger: "Bill > ₹" + Math.round(aov * 2), next_visit_min_spend: Math.round(aov * 2.5), next_visit_gold_reward: Math.max(150, Math.round(aov * 0.6)), tier: "Platinum", description: "Big Groups" },
@@ -613,16 +602,9 @@ Tasks:
         `;
 
         s.deals.forEach((deal, idx) => {
-            // Recalculate if fields missing to prevent NaN
             const realVal = deal.real_value || Math.round(deal.price * 1.1) || 0;
             const price = deal.deal_price || deal.price || 0;
-            // ENFORCE MIN GOLD UI
             const gold = Math.max(30, deal.gold || Math.round(price * 0.15));
-            
-            // MATH UPDATE
-            // Merchant gives 'gold' as a discount on the platform.
-            // Platform Fee is 10% of the Deal Price (Revenue).
-            // GST is 18% of the Platform Fee.
             
             const platformFee = Math.round(price * 0.10);
             const gstOnFee = Math.round(platformFee * 0.18);
@@ -653,7 +635,6 @@ Tasks:
                             </div>
                         </div>
 
-                        <!-- MERCHANT BREAKDOWN (HIDDEN BY DEFAULT) -->
                         <div class="math-breakdown">
                             <div style="background: rgba(0,0,0,0.3); padding: 15px;">
                                 <div style="font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 15px; display:flex; justify-content:space-between;">
@@ -736,7 +717,6 @@ Tasks:
             return "linear-gradient(135deg, #bdc3c7, #2c3e50)";
         };
         
-        // Sort descending by trigger amount just in case logic was mixed
         s.repeatCards.sort((a,b) => (b.next_visit_min_spend || 0) - (a.next_visit_min_spend || 0));
 
         s.repeatCards.forEach((c, i) => {

@@ -135,7 +135,11 @@
 
         /* API KEY SPECIFIC */
         .api-key-input { margin: 15px 0; font-size: 14px; text-align: center; }
-        .hf-badge { display: inline-block; padding: 4px 8px; background: #FFD21E; color: #000; border-radius: 4px; font-weight: 800; font-size: 10px; margin-bottom: 10px; }
+        .hf-badge { display: inline-block; padding: 4px 8px; background: #4285F4; color: #fff; border-radius: 4px; font-weight: 800; font-size: 10px; margin-bottom: 10px; }
+        
+        /* COOLDOWN SPECIFIC */
+        .pulse-red { color: var(--danger); animation: pulse-red 1s infinite; }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(255, 61, 0, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(255, 61, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 61, 0, 0); } }
     </style>
 </head>
 <body>
@@ -176,6 +180,15 @@
                        Reading Menu...
                     </div>
                 </div>
+            </div>
+
+            <!-- COOLDOWN OVERLAY -->
+            <div id="cooldown-overlay" class="loader-overlay" style="display: none; background: rgba(0,0,0,0.98);">
+                <div class="brand-pulse pulse-red" style="margin-bottom: 30px;"><i class="fa fa-clock"></i></div>
+                <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 8px; color: var(--danger);">AI Needs a Break</h2>
+                <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 20px;">Free tier limit reached.</p>
+                <div style="font-size: 50px; font-weight: 800; color: #fff;" id="cooldown-timer">60</div>
+                <p style="font-size: 11px; color: var(--text-sub); margin-top: 20px; opacity: 0.5;">Optimizing for free usage...</p>
             </div>
 
             <!-- PAGE 1: INPUT -->
@@ -283,10 +296,10 @@
         <!-- API KEY MODAL -->
         <div class="api-key-modal" id="api-key-modal" style="display: flex;">
             <div class="modal-box" onclick="event.stopPropagation()">
-                <div class="hf-badge">HUGGING FACE</div>
-                <h3 style="margin:0 0 10px 0; font-weight: 800;">API Key Required</h3>
-                <p style="font-size:13px; color:var(--text-sub); margin-bottom:20px;">Enter your free Hugging Face API Token to power the AI.</p>
-                <input type="password" id="hf-key-input" class="cat-trigger api-key-input" placeholder="hf_...">
+                <div class="hf-badge">GOOGLE GEMINI</div>
+                <h3 style="margin:0 0 10px 0; font-weight: 800;">Gemini API Key</h3>
+                <p style="font-size:13px; color:var(--text-sub); margin-bottom:20px;">Enter your free Google Gemini API Key.</p>
+                <input type="password" id="gemini-key-input" class="cat-trigger api-key-input" placeholder="AIzaSy...">
                 <button class="btn btn-brand ripple-effect" onclick="window.app.saveApiKey()">Start App</button>
                 <p style="font-size:11px; color:var(--text-sub); margin-top:15px;">Key is stored locally on your device.</p>
             </div>
