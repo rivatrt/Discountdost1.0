@@ -201,6 +201,10 @@ window.app = {
         el.classList.toggle('expanded');
     },
 
+    shareStrategy: () => {
+        window.print();
+    },
+
     // --- LIVE MATH UPDATE FOR DEALS ---
     updateDealMath: (el) => {
         const card = el.closest('.deal-card');
@@ -211,9 +215,12 @@ window.app = {
         const price = parseInt(priceText) || 0;
 
         // Recalculate Logic
+        // Logic: Price is what user pays. Gold is cost to merchant.
         const gold = Math.max(30, Math.round(price * 0.15));
         const platformFee = Math.round(price * 0.10);
         const gst = Math.round(platformFee * 0.18);
+        
+        // Net = Customer Payment - Cost of Gold - Fee - GST
         const net = price - gold - platformFee - gst;
 
         // Update DOM elements
@@ -226,6 +233,8 @@ window.app = {
         
         // Update bill value in breakdown as well
         if(q('.val-bill')) q('.val-bill').innerText = window.app.fmt(price);
+        // Update tag
+        if(q('.deal-tag')) q('.deal-tag').innerText = `+${window.app.fmt(gold)} GOLD`;
     },
 
     renderResults: () => {
@@ -514,12 +523,12 @@ Create JSON strategy using ONLY these items.
 {
   "deals": [{"title": "Combo/Offer Name", "items": "Item names", "real_value": number, "deal_price": number, "gold": number}], 
   "vouchers": [{"threshold": number, "amount": number, "desc": "string"}], 
-  "repeatCards": [{"trigger": "string", "next_visit_min_spend": number, "next_visit_gold_reward": number, "tier": "Silver|Gold|Platinum|Black", "description": "string"}]
+  "repeatCard": {"trigger": "Bill > Amount", "next_visit_min_spend": number, "next_visit_gold_reward": number}
 }
 Rules:
 1. 10 Deals. deal_price ~90% of real_value. gold ~15% of deal_price (min 30).
 2. 5 Vouchers (Value 30-60% of AOV).
-3. 4 Repeat Cards.`;
+3. ONE Single Repeat Card strategy optimized for this AOV.`;
 
         try {
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${state.apiKey}`, {
@@ -600,14 +609,13 @@ Rules:
                 { threshold: Math.round(aov * 5.0), amount: Math.max(250, Math.round(aov * 1.5)), desc: "VIP Whale Reward" }
             ];
 
-            const repeatCards = [
-                { offer_title: "Repeat Card", trigger: "Bill > ₹" + Math.round(aov * 3), next_visit_min_spend: Math.round(aov * 3.5), next_visit_gold_reward: Math.max(300, Math.round(aov * 1.0)), tier: "Black", description: "VIP / High Spenders" },
-                { offer_title: "Repeat Card", trigger: "Bill > ₹" + Math.round(aov * 2), next_visit_min_spend: Math.round(aov * 2.5), next_visit_gold_reward: Math.max(150, Math.round(aov * 0.6)), tier: "Platinum", description: "Big Groups" },
-                { offer_title: "Repeat Card", trigger: "Bill > ₹" + Math.round(aov * 1.2), next_visit_min_spend: Math.round(aov * 1.5), next_visit_gold_reward: Math.max(80, Math.round(aov * 0.30)), tier: "Gold", description: "Regulars" },
-                { offer_title: "Repeat Card", trigger: "Bill < ₹" + Math.round(aov), next_visit_min_spend: aov, next_visit_gold_reward: Math.max(40, Math.round(aov * 0.15)), tier: "Silver", description: "New Walk-ins" }
-            ];
+            const repeatCard = { 
+                trigger: "Bill > " + Math.round(aov * 1.5), 
+                next_visit_min_spend: Math.round(aov * 2), 
+                next_visit_gold_reward: Math.max(100, Math.round(aov * 0.4)) 
+            };
 
-            state.strategy = { deals, vouchers, repeatCards };
+            state.strategy = { deals, vouchers, repeatCard };
             window.app.renderStrategy();
         } finally {
             // Keep loader for a sec to show "Done" state
@@ -679,10 +687,10 @@ Rules:
                     <div class="math-breakdown">
                         <div style="padding: 20px;">
                             <div style="display:grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 13px; margin-bottom: 15px;">
-                                <div style="color:rgba(255,255,255,0.7);">Bill Value</div>
+                                <div style="color:rgba(255,255,255,0.7);">Customer Pays (Revenue)</div>
                                 <div class="val-bill" style="font-weight:700;">${window.app.fmt(price)}</div>
                                 
-                                <div style="color:rgba(255,255,255,0.7);">Less: Gold Reward</div>
+                                <div style="color:rgba(255,255,255,0.7);">Less: Cost of Gold</div>
                                 <div class="val-gold" style="font-weight:700; color:#FFB300;">- ${window.app.fmt(gold)}</div>
                                 
                                 <div style="color:rgba(255,255,255,0.7);">Less: Fee & GST</div>
@@ -701,107 +709,81 @@ Rules:
         html += `
             </div>
             
-            <!-- REPEAT CARDS -->
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;">
-                <div style="width: 24px; height: 24px; background: #4CAF50; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
-                    <i class="fa fa-redo"></i>
-                </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Repeat Business Cards</span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 15px;">
-        `;
-
-        const getTierColor = (tier) => {
-            const t = tier?.toLowerCase() || "";
-            if (t.includes("black")) return "#000000";
-            if (t.includes("platinum")) return "#37474F";
-            if (t.includes("gold")) return "#FF6F00";
-            return "#607D8B"; // Silver
-        };
-
-        s.repeatCards.sort((a,b) => (b.next_visit_min_spend || 0) - (a.next_visit_min_spend || 0));
-
-        s.repeatCards.forEach((c, i) => {
-            const tierColor = getTierColor(c.tier);
-            
-            html += `
-                <div class="repeat-card-new stagger-in" style="animation-delay: ${0.5 + (i * 0.1)}s;">
-                    <div class="rc-header">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="width: 10px; height: 10px; border-radius: 50%; background: ${tierColor}; box-shadow: 0 0 5px ${tierColor};"></div>
-                            <span style="font-weight: 700; color: var(--text-main); font-size: 12px;">${c.tier || "Loyalty"} Card</span>
-                        </div>
-                        <div class="rc-badge" style="background: ${tierColor}20; color: ${tierColor === '#000000' ? '#fff' : tierColor}; border: 1px solid ${tierColor}40;">
-                            ${c.description || "Customer"}
-                        </div>
-                    </div>
-                    
-                    <div class="rc-content">
-                        <!-- FLOW VISUALIZATION -->
-                        <div class="rc-flow">
-                            <!-- STEP 1: GIVE -->
-                            <div class="rc-node" style="padding-left: 0; text-align: left;">
-                                <div class="rc-node-circle" style="margin: 0 0 8px 0;">
-                                    <i class="fa fa-hand-holding-heart" style="color: var(--text-sub);"></i>
-                                </div>
-                                <div class="rc-node-title">Give Card</div>
-                                <div class="rc-node-val" contenteditable="true">${c.trigger.replace('Bill', 'Bill ')}</div>
-                            </div>
-                            
-                            <!-- STEP 2: REDEEM -->
-                            <div class="rc-node" style="padding-right: 0; text-align: right;">
-                                <div class="rc-node-circle" style="margin: 0 0 8px auto;">
-                                    <i class="fa fa-walking" style="color: var(--text-sub);"></i>
-                                </div>
-                                <div class="rc-node-title">Redeem Next Visit</div>
-                                <div class="rc-node-val">Spend <span contenteditable="true">${window.app.fmt(c.next_visit_min_spend)}</span></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="rc-footer">
-                        <div style="font-size: 10px; color: #FFB300; text-transform: uppercase; font-weight: 800; margin-bottom: 2px;">Customer Reward</div>
-                        <div style="font-size: 18px; font-weight: 800; color: #FFB300;">
-                            <i class="fa fa-coins"></i> <span contenteditable="true">${window.app.fmt(c.next_visit_gold_reward)}</span> Gold
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-
-        html += `
-            </div>
-
-            <!-- VOUCHERS (SIMPLIFIED) -->
+            <!-- VOUCHERS (GOLD STYLE) -->
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;">
                 <div style="width: 24px; height: 24px; background: #FFC107; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: black; font-size: 12px;">
                     <i class="fa fa-gift"></i>
                 </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Retention Vouchers</span>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Gold Vouchers (Retention)</span>
             </div>
             <div style="display: flex; overflow-x: auto; gap: 15px; padding-bottom: 20px; scroll-snap-type: x mandatory;">
         `;
 
         s.vouchers.forEach((v, i) => {
             html += `
-                <div class="card stagger-in" style="min-width: 220px; background: linear-gradient(135deg, #2c2c2e, #1c1c1e); border: 1px solid var(--border-color); border-radius: 16px; padding: 20px; position: relative; scroll-snap-align: start; animation-delay: ${0.8 + (i * 0.1)}s;">
-                    <div style="font-size: 10px; font-weight: 800; color: #FFB300; text-transform: uppercase; margin-bottom: 10px;">Gold Voucher</div>
-                    <div style="text-align: center; padding: 15px 0; border-top: 1px dashed rgba(255,255,255,0.1); border-bottom: 1px dashed rgba(255,255,255,0.1);">
-                        <div contenteditable="true" style="font-size: 28px; font-weight: 800; color: white;">${window.app.fmt(v.amount)}</div>
-                        <div style="font-size: 9px; color: var(--text-sub); margin-top: 5px;">ON BILL > ${window.app.fmt(v.threshold)}</div>
+                <div class="voucher-card-gold stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${0.5 + (i * 0.1)}s;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; opacity: 0.8;">VOUCHER</div>
+                        <div style="font-size: 10px; font-weight: 700; background: #000; color: #FFC107; padding: 2px 6px; border-radius: 4px;">GOLD</div>
                     </div>
-                    <div contenteditable="true" style="font-size: 10px; text-align: center; margin-top: 10px; color: var(--text-sub);">${v.desc}</div>
+                    <div style="text-align: center; padding: 15px 0;">
+                        <div contenteditable="true" style="font-size: 32px; font-weight: 900; letter-spacing: -1px;">${window.app.fmt(v.amount)}</div>
+                        <div style="font-size: 10px; font-weight: 700; margin-top: 5px; opacity: 0.7;">ON BILL > ${window.app.fmt(v.threshold)}</div>
+                    </div>
+                    <div contenteditable="true" style="font-size: 11px; text-align: center; font-weight: 600; opacity: 0.8; line-height: 1.4;">${v.desc}</div>
+                    
+                    <div class="math-breakdown" style="margin-top: 15px; border-top: 1px solid rgba(0,0,0,0.1); color: #000;">
+                        <div style="padding: 10px 0 0 0; font-size: 10px; opacity: 0.7;">
+                            Tap to edit logic. These vouchers incentivize customers to spend above ${window.app.fmt(v.threshold)} to unlock ${window.app.fmt(v.amount)} for their next visit.
+                        </div>
+                    </div>
                 </div>
             `;
         });
 
         html += `
             </div>
+            
+            <!-- SINGLE REPEAT CARD -->
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;">
+                <div style="width: 24px; height: 24px; background: #4CAF50; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
+                    <i class="fa fa-redo"></i>
+                </div>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Repeat Business Strategy</span>
+            </div>
+            
+            <div class="single-repeat-card stagger-in" style="animation-delay: 1s;">
+                <div class="src-title">The Loyalty Loop</div>
+                <div class="src-grid">
+                    <!-- Step 1 -->
+                    <div class="src-step">
+                        <div class="src-icon"><i class="fa fa-receipt"></i></div>
+                        <div class="src-label">Give When</div>
+                        <div class="src-value" contenteditable="true">${s.repeatCard.trigger || "Bill > 500"}</div>
+                    </div>
+                    <!-- Arrow -->
+                    <div class="src-step"><i class="fa fa-chevron-right src-arrow"></i></div>
+                    <!-- Step 2 -->
+                    <div class="src-step">
+                        <div class="src-icon"><i class="fa fa-store"></i></div>
+                        <div class="src-label">Redeem On</div>
+                        <div class="src-value">Spend <span contenteditable="true">${window.app.fmt(s.repeatCard.next_visit_min_spend)}</span></div>
+                    </div>
+                </div>
+                
+                <div class="src-reward">
+                    <div style="font-size: 10px; font-weight: 800; color: #FFB300; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">CUSTOMER REWARD</div>
+                    <div style="font-size: 24px; font-weight: 900; color: #FFB300;">
+                         + <span contenteditable="true">${window.app.fmt(s.repeatCard.next_visit_gold_reward)}</span> GOLD
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-sub); margin-top: 5px; opacity: 0.6;">(To be used on 3rd visit)</div>
+                </div>
+            </div>
 
-            <button class="btn btn-brand ripple-effect" style="margin-top: 30px; margin-bottom: 50px;" onclick="alert('Strategy Saved! Edits applied.')">
-                Save & Onboard
+            <button class="btn btn-brand ripple-effect" style="margin-top: 40px;" onclick="app.shareStrategy()">
+                <i class="fa fa-file-pdf"></i> Download Strategy PDF
             </button>
-             <button class="btn ripple-effect" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-sub);" onclick="location.reload()">
+             <button class="btn ripple-effect" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-sub); margin-bottom: 50px;" onclick="location.reload()">
                 Reset Strategy
             </button>
         `;
