@@ -33,6 +33,7 @@ const state = {
     isDark: true,
     apiKey: null,
     strategy: null,
+    groundingSources: [],
     loaderInterval: null,
     tipInterval: null,
     loaderStepIndex: 0,
@@ -580,6 +581,8 @@ window.app = {
 Menu:
 ${inputMenu}
 
+Use Google Search to verify popular items, pricing, or trends for this store/category if needed.
+
 Create JSON strategy using ONLY these items.
 {
   "deals": [{"title": "Combo/Offer Name", "items": "Item names", "real_value": number, "deal_price": number, "gold": number}], 
@@ -587,9 +590,10 @@ Create JSON strategy using ONLY these items.
   "repeatCard": {"trigger": "Bill > Amount", "next_visit_min_spend": number, "next_visit_gold_reward": number}
 }
 Rules:
-1. 10 Deals. deal_price ~90% of real_value. gold ~10% of deal_price (min 30).
+1. 10 Deals. deal_price MUST EQUAL real_value (User pays Full MRP). gold ~10-15% of deal_price (min 30).
 2. 5 Vouchers (Value 30-60% of AOV).
-3. ONE Single Repeat Card strategy optimized for this AOV.`;
+3. ONE Single Repeat Card strategy optimized for this AOV.
+4. Output ONLY valid JSON text. No markdown.`;
 
         try {
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${state.apiKey}`, {
@@ -597,7 +601,8 @@ Rules:
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { responseMimeType: "application/json" }
+                    // Use tools for Search Grounding
+                    tools: [{ googleSearch: {} }] 
                 })
             });
 
@@ -608,7 +613,17 @@ Rules:
             }
 
             const result = await response.json();
-            const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+            const candidate = result?.candidates?.[0];
+            let jsonText = candidate?.content?.parts?.[0]?.text;
+            
+            // Extract Grounding Metadata
+            const groundingChunks = candidate?.groundingMetadata?.groundingChunks || [];
+            state.groundingSources = groundingChunks.map(c => c.web).filter(w => w);
+
+            // Clean JSON
+            if (jsonText) {
+                jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+            }
             
             if (!jsonText) throw new Error("Empty AI response");
 
@@ -648,7 +663,8 @@ Rules:
                 let isCombo = !isHighValue && (i % 3 !== 0); 
                 
                 let realVal = isCombo ? (item1.price + item2.price) : item1.price;
-                let dealPrice = Math.round(realVal * 0.9);
+                // Deal Price = Real Value (Full MRP)
+                let dealPrice = realVal; 
                 let rawGold = Math.round(dealPrice * 0.10); // ~10%
                 let gold = Math.max(30, rawGold);
                 
@@ -677,6 +693,8 @@ Rules:
             };
 
             state.strategy = { deals, vouchers, repeatCard };
+            // Clear sources on fallback
+            state.groundingSources = [];
             window.app.renderStrategy();
         } finally {
             // Keep loader for a sec to show "Done" state
@@ -690,9 +708,33 @@ Rules:
         container.style.display = 'block';
 
         const s = state.strategy;
+        const sources = state.groundingSources || [];
 
-        let html = `
-            <!-- DEALS -->
+        let html = '';
+
+        // --- GROUNDING SOURCES SECTION ---
+        if (sources.length > 0) {
+            html += `
+                <div style="margin-bottom: 20px; padding: 15px; background: rgba(66, 133, 244, 0.1); border: 1px solid rgba(66, 133, 244, 0.3); border-radius: 12px; animation: fadeUp 0.5s ease;">
+                    <div style="font-size: 11px; font-weight: 800; color: #4285F4; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">
+                        <i class="fab fa-google"></i> Verified with Google Search
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            `;
+            sources.forEach(src => {
+                if (src.uri && src.title) {
+                    html += `
+                        <a href="${src.uri}" target="_blank" style="font-size: 11px; color: var(--text-main); text-decoration: none; background: var(--bg-surface); padding: 4px 10px; border-radius: 15px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 5px;">
+                            ${src.title} <i class="fa fa-external-link-alt" style="font-size: 9px; opacity: 0.5;"></i>
+                        </a>
+                    `;
+                }
+            });
+            html += `</div></div>`;
+        }
+        
+        // --- DEALS SECTION ---
+        html += `
             <div style="display: flex; alignItems: center; gap: 8px; margin-bottom: 15px; margin-top: 10px;">
                 <div style="width: 24px; height: 24px; background: #FF5722; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
                     <i class="fa fa-ticket-alt"></i>
@@ -730,12 +772,12 @@ Rules:
                         
                         <div class="deal-price-box">
                             <div>
-                                <div class="price-label">Customer Pays</div>
+                                <div class="price-label">Customer Pays (Full MRP)</div>
                                 <div contenteditable="true" oninput="app.updateDealMath(this)" class="deal-price-edit" style="font-size: 20px; font-weight: 800; color: var(--brand); letter-spacing: -0.5px;">${window.app.fmt(price)}</div>
                             </div>
                             <div style="text-align: right;">
                                 <div class="price-label">Real Value</div>
-                                <div style="font-size: 14px; font-weight: 600; color: var(--text-sub); text-decoration: line-through;">${window.app.fmt(realVal)}</div>
+                                <div style="font-size: 14px; font-weight: 600; color: var(--text-sub);">${window.app.fmt(realVal)}</div>
                             </div>
                         </div>
 
