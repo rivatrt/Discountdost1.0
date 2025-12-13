@@ -11,6 +11,16 @@ const CATEGORIES = [
     { id: 'Other', icon: 'fa-store', label: 'Other', brandRef: "premium loyalty programs" }
 ];
 
+const GROWTH_QUOTES = [
+    "Customer retention is the new acquisition.",
+    "Discounts bring them in, value brings them back.",
+    "Your menu is your best salesperson.",
+    "Loyalty is earned, not bought.",
+    "Data beats opinion every single time.",
+    "Small changes in pricing, big changes in profit.",
+    "The goal is not to sell, but to help them buy."
+];
+
 // --- APP STATE ---
 const state = {
     page: 1,
@@ -24,6 +34,7 @@ const state = {
     apiKey: null,
     strategy: null,
     loaderInterval: null,
+    quoteInterval: null,
     loaderStepIndex: 0,
     manualItems: [{name:"", price:""}, {name:"", price:""}, {name:"", price:""}],
     installPrompt: null,
@@ -198,6 +209,13 @@ window.app = {
     toggleDeal: (el) => {
         // Prevent toggle if editing
         if (document.activeElement && document.activeElement.getAttribute('contenteditable') === 'true') return;
+        
+        // Handle Repeat Card wrapper expansion specifically
+        if (el.classList.contains('repeat-card-wrapper')) {
+             el.classList.toggle('expanded');
+             return;
+        }
+        
         el.classList.toggle('expanded');
     },
 
@@ -215,10 +233,14 @@ window.app = {
         const price = parseInt(priceText) || 0;
 
         // Recalculate Logic
-        // Logic: Price is what user pays. Gold is cost to merchant.
-        const gold = Math.max(30, Math.round(price * 0.15));
+        // Scenario: Price 1000. 
+        // Platform Fee (10%): 100.
+        // GST (18% on Fee): 18.
+        // Gold Given to User (Cost to Merchant): 10% approx -> 100.
+        
         const platformFee = Math.round(price * 0.10);
         const gst = Math.round(platformFee * 0.18);
+        const gold = Math.max(30, Math.round(price * 0.10)); // ~10% discount as gold
         
         // Net = Customer Payment - Cost of Gold - Fee - GST
         const net = price - gold - platformFee - gst;
@@ -234,7 +256,18 @@ window.app = {
         // Update bill value in breakdown as well
         if(q('.val-bill')) q('.val-bill').innerText = window.app.fmt(price);
         // Update tag
-        if(q('.deal-tag')) q('.deal-tag').innerText = `+${window.app.fmt(gold)} GOLD`;
+        if(q('.deal-tag')) q('.deal-tag').innerText = `GET ${window.app.fmt(gold)} GOLD`;
+    },
+
+    updateRepeatCard: () => {
+        const wrapper = document.querySelector('.repeat-card-wrapper');
+        if (!wrapper) return;
+        
+        // Get Inputs
+        const getGold = parseInt(wrapper.querySelector('.inp-rc-gold').innerText.replace(/[^0-9]/g,'')) || 0;
+        
+        // Update Visual Front
+        wrapper.querySelector('.gold-text').innerText = `${window.app.fmt(getGold)} Gold`;
     },
 
     renderResults: () => {
@@ -455,11 +488,40 @@ window.app = {
     toggleLoader: (show, isScanning = false) => {
         const loader = document.getElementById('loader');
         const list = document.getElementById('loader-list');
+        const visual = document.getElementById('loader-visual');
+        const quoteBox = document.getElementById('loader-quote');
         
         if (show) {
             loader.style.display = 'flex';
             
-            // Generate steps based on context
+            // 1. SET VISUAL ANIMATION
+            if (isScanning) {
+                visual.innerHTML = `
+                    <div class="scan-container">
+                        <i class="fa fa-file-invoice scan-doc"></i>
+                        <div class="scan-line"></div>
+                    </div>
+                `;
+            } else {
+                visual.innerHTML = `
+                    <div class="strat-container">
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                    </div>
+                `;
+            }
+
+            // 2. START QUOTES
+            const rotateQuote = () => {
+                const q = GROWTH_QUOTES[Math.floor(Math.random() * GROWTH_QUOTES.length)];
+                quoteBox.innerText = `"${q}"`;
+            };
+            rotateQuote(); // Initial
+            if (state.quoteInterval) clearInterval(state.quoteInterval);
+            state.quoteInterval = setInterval(rotateQuote, 4000); // Change every 4s
+
+            // 3. GENERATE CHECKLIST
             const steps = isScanning ? 
                 ["Scanning Image...", "Extracting Text...", "Identifying Prices...", "Formatting Menu..."] :
                 ["Reading Menu Items...", "Benchmarking Prices...", "Identifying Heroes...", "Designing Combos...", "Calculating Gold...", "Finalizing Strategy..."];
@@ -473,11 +535,11 @@ window.app = {
 
             state.loaderStepIndex = 0;
             
-            // Animate steps
+            // 4. ANIMATE CHECKLIST
             if(state.loaderInterval) clearInterval(state.loaderInterval);
-            
             const stepEls = list.querySelectorAll('.loader-step');
-            // Immediately activate first
+            
+            // Activate first immediately
             if(stepEls[0]) {
                 stepEls[0].classList.add('active');
                 stepEls[0].querySelector('.step-icon').innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
@@ -486,25 +548,24 @@ window.app = {
             state.loaderInterval = setInterval(() => {
                 if(state.loaderStepIndex < stepEls.length) {
                     const current = stepEls[state.loaderStepIndex];
-                    // Mark current as done
                     current.classList.remove('active');
                     current.classList.add('done');
                     current.querySelector('.step-icon').innerHTML = '<i class="fa fa-check"></i>';
                     
                     state.loaderStepIndex++;
                     
-                    // Activate next
                     if(state.loaderStepIndex < stepEls.length) {
                         const next = stepEls[state.loaderStepIndex];
                         next.classList.add('active');
                         next.querySelector('.step-icon').innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
                     }
                 }
-            }, 800); // 800ms per step
+            }, 800);
             
         } else {
             loader.style.display = 'none';
             clearInterval(state.loaderInterval);
+            clearInterval(state.quoteInterval);
         }
     },
 
@@ -526,7 +587,7 @@ Create JSON strategy using ONLY these items.
   "repeatCard": {"trigger": "Bill > Amount", "next_visit_min_spend": number, "next_visit_gold_reward": number}
 }
 Rules:
-1. 10 Deals. deal_price ~90% of real_value. gold ~15% of deal_price (min 30).
+1. 10 Deals. deal_price ~90% of real_value. gold ~10% of deal_price (min 30).
 2. 5 Vouchers (Value 30-60% of AOV).
 3. ONE Single Repeat Card strategy optimized for this AOV.`;
 
@@ -588,7 +649,7 @@ Rules:
                 
                 let realVal = isCombo ? (item1.price + item2.price) : item1.price;
                 let dealPrice = Math.round(realVal * 0.9);
-                let rawGold = Math.round(dealPrice * 0.15);
+                let rawGold = Math.round(dealPrice * 0.10); // ~10%
                 let gold = Math.max(30, rawGold);
                 
                 deals.push({
@@ -644,7 +705,7 @@ Rules:
         s.deals.forEach((deal, idx) => {
             const realVal = deal.real_value || Math.round(deal.price * 1.1) || 0;
             const price = deal.deal_price || deal.price || 0;
-            const gold = Math.max(30, deal.gold || Math.round(price * 0.15));
+            const gold = Math.max(30, deal.gold || Math.round(price * 0.10));
             
             const platformFee = Math.round(price * 0.10);
             const gstOnFee = Math.round(platformFee * 0.18);
@@ -658,7 +719,7 @@ Rules:
                             DEAL #${idx+1}
                         </div>
                         <div class="deal-tag">
-                            +${window.app.fmt(gold)} GOLD
+                            GET ${window.app.fmt(gold)} GOLD
                         </div>
                     </div>
 
@@ -690,14 +751,17 @@ Rules:
                                 <div style="color:rgba(255,255,255,0.7);">Customer Pays (Revenue)</div>
                                 <div class="val-bill" style="font-weight:700;">${window.app.fmt(price)}</div>
                                 
-                                <div style="color:rgba(255,255,255,0.7);">Less: Cost of Gold</div>
+                                <div style="color:rgba(255,255,255,0.7);">Less: User Gets Gold (Cost)</div>
                                 <div class="val-gold" style="font-weight:700; color:#FFB300;">- ${window.app.fmt(gold)}</div>
                                 
-                                <div style="color:rgba(255,255,255,0.7);">Less: Fee & GST</div>
-                                <div class="val-fee" style="font-weight:700; color:#FF5722;">- ${window.app.fmt(platformFee + gstOnFee)}</div>
+                                <div style="color:rgba(255,255,255,0.7);">Less: Platform Fee (10%)</div>
+                                <div class="val-fee" style="font-weight:700; color:#FF5722;">- ${window.app.fmt(platformFee)}</div>
+                                
+                                <div style="color:rgba(255,255,255,0.7);">Less: GST on Fee (18%)</div>
+                                <div class="val-gst" style="font-weight:700; color:#FF5722;">- ${window.app.fmt(gstOnFee)}</div>
                             </div>
                             <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
-                                <span style="font-size: 11px; color: #00E676; font-weight: 800; text-transform: uppercase;">Net Earning</span>
+                                <span style="font-size: 11px; color: #00E676; font-weight: 800; text-transform: uppercase;">Net Merchant Earning</span>
                                 <span class="val-net" style="font-size: 18px; font-weight: 800; color: #00E676;">${window.app.fmt(net)}</span>
                             </div>
                         </div>
@@ -716,85 +780,4 @@ Rules:
                 </div>
                 <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Gold Vouchers (Retention)</span>
             </div>
-            <div style="display: flex; overflow-x: auto; gap: 15px; padding-bottom: 20px; scroll-snap-type: x mandatory;">
-        `;
-
-        s.vouchers.forEach((v, i) => {
-            html += `
-                <div class="voucher-card-gold stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${0.5 + (i * 0.1)}s;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; opacity: 0.8;">VOUCHER</div>
-                        <div style="font-size: 10px; font-weight: 700; background: #000; color: #FFC107; padding: 2px 6px; border-radius: 4px;">GOLD</div>
-                    </div>
-                    <div style="text-align: center; padding: 15px 0;">
-                        <div contenteditable="true" style="font-size: 32px; font-weight: 900; letter-spacing: -1px;">${window.app.fmt(v.amount)}</div>
-                        <div style="font-size: 10px; font-weight: 700; margin-top: 5px; opacity: 0.7;">ON BILL > ${window.app.fmt(v.threshold)}</div>
-                    </div>
-                    <div contenteditable="true" style="font-size: 11px; text-align: center; font-weight: 600; opacity: 0.8; line-height: 1.4;">${v.desc}</div>
-                    
-                    <div class="math-breakdown" style="margin-top: 15px; border-top: 1px solid rgba(0,0,0,0.1); color: #000;">
-                        <div style="padding: 10px 0 0 0; font-size: 10px; opacity: 0.7;">
-                            Tap to edit logic. These vouchers incentivize customers to spend above ${window.app.fmt(v.threshold)} to unlock ${window.app.fmt(v.amount)} for their next visit.
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-
-        html += `
-            </div>
-            
-            <!-- SINGLE REPEAT CARD -->
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;">
-                <div style="width: 24px; height: 24px; background: #4CAF50; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
-                    <i class="fa fa-redo"></i>
-                </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Repeat Business Strategy</span>
-            </div>
-            
-            <div class="single-repeat-card stagger-in" style="animation-delay: 1s;">
-                <div class="src-title">The Loyalty Loop</div>
-                <div class="src-grid">
-                    <!-- Step 1 -->
-                    <div class="src-step">
-                        <div class="src-icon"><i class="fa fa-receipt"></i></div>
-                        <div class="src-label">Give When</div>
-                        <div class="src-value" contenteditable="true">${s.repeatCard.trigger || "Bill > 500"}</div>
-                    </div>
-                    <!-- Arrow -->
-                    <div class="src-step"><i class="fa fa-chevron-right src-arrow"></i></div>
-                    <!-- Step 2 -->
-                    <div class="src-step">
-                        <div class="src-icon"><i class="fa fa-store"></i></div>
-                        <div class="src-label">Redeem On</div>
-                        <div class="src-value">Spend <span contenteditable="true">${window.app.fmt(s.repeatCard.next_visit_min_spend)}</span></div>
-                    </div>
-                </div>
-                
-                <div class="src-reward">
-                    <div style="font-size: 10px; font-weight: 800; color: #FFB300; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">CUSTOMER REWARD</div>
-                    <div style="font-size: 24px; font-weight: 900; color: #FFB300;">
-                         + <span contenteditable="true">${window.app.fmt(s.repeatCard.next_visit_gold_reward)}</span> GOLD
-                    </div>
-                    <div style="font-size: 11px; color: var(--text-sub); margin-top: 5px; opacity: 0.6;">(To be used on 3rd visit)</div>
-                </div>
-            </div>
-
-            <button class="btn btn-brand ripple-effect" style="margin-top: 40px;" onclick="app.shareStrategy()">
-                <i class="fa fa-file-pdf"></i> Download Strategy PDF
-            </button>
-             <button class="btn ripple-effect" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-sub); margin-bottom: 50px;" onclick="location.reload()">
-                Reset Strategy
-            </button>
-        `;
-
-        container.innerHTML = html;
-    }
-};
-
-// Initialize
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', window.app.init);
-} else {
-    window.app.init();
-}
+            <div style="display: flex; overflow-x: auto; gap:
