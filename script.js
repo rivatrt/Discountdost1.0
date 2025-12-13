@@ -430,7 +430,8 @@ Input Data: ${inputMenu}
 Ensure valid JSON. No Markdown. [/INST]`;
 
         try {
-            const response = await fetch('https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1', {
+            // Using Mistral 7B (lighter model) instead of 8x7B (heavy model) for better reliability
+            const response = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${state.apiKey}`,
