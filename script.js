@@ -24,6 +24,7 @@ const state = {
     apiKey: null,
     strategy: null,
     loaderInterval: null,
+    loaderStepIndex: 0,
     manualItems: [{name:"", price:""}, {name:"", price:""}, {name:"", price:""}],
     installPrompt: null,
     cooldownTimer: null
@@ -395,10 +396,8 @@ window.app = {
             const file = input.files[0];
             const reader = new FileReader();
 
-            window.app.toggleLoader(true);
-            const textEl = document.getElementById('loader-text');
-            if (textEl) textEl.innerText = "Scanning Menu...";
-
+            window.app.toggleLoader(true, true); // true, true for scan mode
+            
             reader.onload = async (e) => {
                 const base64Data = e.target.result;
                 const base64Content = base64Data.split(',')[1]; // Strip header
@@ -436,7 +435,6 @@ window.app = {
                     console.warn("AI Scan failed. Using Smart Fallback.", err);
                     const fallbackData = window.app.getFallbackMenu(state.category.id);
                     document.getElementById('menu-text').value = fallbackData;
-                    if(textEl) textEl.innerText = "Auto-detecting items...";
                     setTimeout(() => window.app.toggleLoader(false), 800);
                 }
             };
@@ -445,23 +443,56 @@ window.app = {
     },
 
     // --- AI ANALYSIS (GEMINI) ---
-    toggleLoader: (show) => {
+    toggleLoader: (show, isScanning = false) => {
         const loader = document.getElementById('loader');
+        const list = document.getElementById('loader-list');
+        
         if (show) {
             loader.style.display = 'flex';
-            const messages = [
-                `Reading ${state.storeName || "Menu"}...`,
-                `Analyzing ${state.category.label} trends...`,
-                "Designing Big Combo Deals...",
-                "Calculating High-Value Gold Vouchers...",
-                "Crafting Loyalty Strategy..."
-            ];
-            let i = 0;
+            
+            // Generate steps based on context
+            const steps = isScanning ? 
+                ["Scanning Image...", "Extracting Text...", "Identifying Prices...", "Formatting Menu..."] :
+                ["Reading Menu Items...", "Benchmarking Prices...", "Identifying Heroes...", "Designing Combos...", "Calculating Gold...", "Finalizing Strategy..."];
+            
+            list.innerHTML = steps.map(s => `
+                <div class="loader-step">
+                    <div class="step-icon"><i class="fa fa-circle"></i></div>
+                    <span>${s}</span>
+                </div>
+            `).join('');
+
+            state.loaderStepIndex = 0;
+            
+            // Animate steps
+            if(state.loaderInterval) clearInterval(state.loaderInterval);
+            
+            const stepEls = list.querySelectorAll('.loader-step');
+            // Immediately activate first
+            if(stepEls[0]) {
+                stepEls[0].classList.add('active');
+                stepEls[0].querySelector('.step-icon').innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+            }
+
             state.loaderInterval = setInterval(() => {
-                i = (i + 1) % messages.length;
-                const textEl = document.getElementById('loader-text');
-                if(textEl) textEl.innerText = messages[i];
-            }, 2500);
+                if(state.loaderStepIndex < stepEls.length) {
+                    const current = stepEls[state.loaderStepIndex];
+                    // Mark current as done
+                    current.classList.remove('active');
+                    current.classList.add('done');
+                    current.querySelector('.step-icon').innerHTML = '<i class="fa fa-check"></i>';
+                    
+                    state.loaderStepIndex++;
+                    
+                    // Activate next
+                    if(state.loaderStepIndex < stepEls.length) {
+                        const next = stepEls[state.loaderStepIndex];
+                        next.classList.add('active');
+                        next.querySelector('.step-icon').innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+                    }
+                }
+            }, 800); // 800ms per step
+            
         } else {
             loader.style.display = 'none';
             clearInterval(state.loaderInterval);
@@ -579,7 +610,8 @@ Rules:
             state.strategy = { deals, vouchers, repeatCards };
             window.app.renderStrategy();
         } finally {
-            window.app.toggleLoader(false);
+            // Keep loader for a sec to show "Done" state
+             setTimeout(() => window.app.toggleLoader(false), 500);
         }
     },
 
@@ -594,9 +626,9 @@ Rules:
             <!-- DEALS -->
             <div style="display: flex; alignItems: center; gap: 8px; margin-bottom: 15px; margin-top: 10px;">
                 <div style="width: 24px; height: 24px; background: #FF5722; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
-                    <i class="fa fa-magnet"></i>
+                    <i class="fa fa-ticket-alt"></i>
                 </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">10 Deals (Tap to Reveal)</span>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">10 Exclusive Deals</span>
             </div>
             <div>
         `;
@@ -611,58 +643,56 @@ Rules:
             const net = price - gold - platformFee - gstOnFee;
             
             html += `
-                <div class="card stagger-in deal-card" onclick="app.toggleDeal(this)" style="padding: 0; overflow: visible; margin-bottom: 25px; background: transparent; border: none; box-shadow: none; animation-delay: ${idx * 0.05}s;">
-                    <div style="background: var(--bg-surface); border-radius: 16px; overflow: hidden; position: relative; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-                        <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 6px; background: var(--gold-grad);"></div>
-                        <div style="padding: 20px 20px 20px 26px; display: flex; flex-direction: column; gap: 10px;">
-                            
-                            <!-- Header -->
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                <div style="flex: 1;">
-                                    <div style="font-size: 10px; font-weight: 800; color: #FFB300; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; display:flex; align-items:center; gap:5px;">
-                                        DEAL #${idx+1} <i class="fa fa-pencil" style="opacity:0.5; font-size:10px;"></i>
-                                    </div>
-                                    <div contenteditable="true" style="font-size: 18px; font-weight: 800; margin-bottom: 5px; color: var(--text-main); border-bottom: 1px dashed rgba(255,255,255,0.2); display:inline-block;">${deal.title}</div>
-                                    <div contenteditable="true" style="font-size: 13px; color: var(--text-sub); border-bottom: 1px dashed rgba(255,255,255,0.2); display:inline-block; width:100%; margin-top:4px;">${deal.items}</div>
-                                </div>
-                                <div style="text-align: right; margin-left: 10px;">
-                                    <div style="background: var(--bg-input); color: var(--text-sub); border-radius: 8px; padding: 4px 8px; font-weight: 700; font-size: 11px; text-decoration: line-through; margin-bottom:4px;">
-                                        ${window.app.fmt(realVal)}
-                                    </div>
-                                    <div contenteditable="true" oninput="app.updateDealMath(this)" class="deal-price-edit" style="background: var(--primary); color: var(--bg-body); border-radius: 8px; padding: 8px 12px; font-weight: 800; font-size: 16px; text-align: center; cursor: text; min-width: 60px;">${window.app.fmt(price)}</div>
-                                    <div class="tap-hint">TAP FOR MATH</div>
-                                </div>
+                <div class="deal-card deal-card-new stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${idx * 0.05}s;">
+                    <!-- HEADER -->
+                    <div class="deal-header">
+                        <div style="font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px;">
+                            DEAL #${idx+1}
+                        </div>
+                        <div class="deal-tag">
+                            +${window.app.fmt(gold)} GOLD
+                        </div>
+                    </div>
+
+                    <!-- BODY -->
+                    <div class="deal-body">
+                        <div contenteditable="true" style="font-size: 18px; font-weight: 800; margin-bottom: 6px; color: var(--text-main); line-height: 1.3;">${deal.title}</div>
+                        <div contenteditable="true" style="font-size: 13px; color: var(--text-sub); line-height: 1.4; opacity: 0.8;">${deal.items}</div>
+                        
+                        <div class="deal-price-box">
+                            <div>
+                                <div class="price-label">Customer Pays</div>
+                                <div contenteditable="true" oninput="app.updateDealMath(this)" class="deal-price-edit" style="font-size: 20px; font-weight: 800; color: var(--brand); letter-spacing: -0.5px;">${window.app.fmt(price)}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div class="price-label">Real Value</div>
+                                <div style="font-size: 14px; font-weight: 600; color: var(--text-sub); text-decoration: line-through;">${window.app.fmt(realVal)}</div>
                             </div>
                         </div>
 
-                        <div class="math-breakdown">
-                            <div style="background: rgba(0,0,0,0.3); padding: 15px;">
-                                <div style="font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 15px; display:flex; justify-content:space-between;">
-                                    <span>Merchant Breakdown</span>
-                                    <span><i class="fa fa-calculator"></i></span>
-                                </div>
+                        <div style="text-align: center; margin-top: 10px;">
+                            <div class="tap-hint">TAP TO SEE BREAKDOWN <i class="fa fa-chevron-down"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- BREAKDOWN -->
+                    <div class="math-breakdown">
+                        <div style="padding: 20px;">
+                            <div style="display:grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 13px; margin-bottom: 15px;">
+                                <div style="color:rgba(255,255,255,0.7);">Bill Value</div>
+                                <div class="val-bill" style="font-weight:700;">${window.app.fmt(price)}</div>
                                 
-                                <div style="display:grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 13px; margin-bottom: 15px;">
-                                    <div style="color:rgba(255,255,255,0.8);">Bill Value</div>
-                                    <div class="val-bill" style="font-weight:700;">${window.app.fmt(price)}</div>
-                                    
-                                    <div style="color:rgba(255,255,255,0.8);">Less: Gold Reward (15%)</div>
-                                    <div class="val-gold" style="font-weight:700; color:#FFB300;">- ${window.app.fmt(gold)}</div>
-                                    
-                                    <div style="color:rgba(255,255,255,0.8);">Less: Platform Fee <span style="font-size:9px; background:#333; padding:2px 4px; border-radius:3px;">10%</span></div>
-                                    <div class="val-fee" style="font-weight:700; color:#FF5722;">- ${window.app.fmt(platformFee)}</div>
-                                    
-                                    <div style="color:rgba(255,255,255,0.8);">Less: GST <span style="font-size:9px; background:#333; padding:2px 4px; border-radius:3px;">18% of Fee</span></div>
-                                    <div class="val-gst" style="font-weight:700; color:#FF5722;">- ${window.app.fmt(gstOnFee)}</div>
-                                </div>
-
-                                <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="font-size: 11px; color: #00E676; font-weight: 800; text-transform: uppercase;">Your Net Earning</span>
-                                    <span class="val-net" style="font-size: 18px; font-weight: 800; color: #00E676;">${window.app.fmt(net)}</span>
-                                </div>
+                                <div style="color:rgba(255,255,255,0.7);">Less: Gold Reward</div>
+                                <div class="val-gold" style="font-weight:700; color:#FFB300;">- ${window.app.fmt(gold)}</div>
+                                
+                                <div style="color:rgba(255,255,255,0.7);">Less: Fee & GST</div>
+                                <div class="val-fee" style="font-weight:700; color:#FF5722;">- ${window.app.fmt(platformFee + gstOnFee)}</div>
+                            </div>
+                            <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 11px; color: #00E676; font-weight: 800; text-transform: uppercase;">Net Earning</span>
+                                <span class="val-net" style="font-size: 18px; font-weight: 800; color: #00E676;">${window.app.fmt(net)}</span>
                             </div>
                         </div>
-
                     </div>
                 </div>
             `;
@@ -670,95 +700,104 @@ Rules:
 
         html += `
             </div>
-            <!-- VOUCHERS -->
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 30px;">
+            
+            <!-- REPEAT CARDS -->
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;">
+                <div style="width: 24px; height: 24px; background: #4CAF50; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
+                    <i class="fa fa-redo"></i>
+                </div>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Repeat Business Cards</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+        `;
+
+        const getTierColor = (tier) => {
+            const t = tier?.toLowerCase() || "";
+            if (t.includes("black")) return "#000000";
+            if (t.includes("platinum")) return "#37474F";
+            if (t.includes("gold")) return "#FF6F00";
+            return "#607D8B"; // Silver
+        };
+
+        s.repeatCards.sort((a,b) => (b.next_visit_min_spend || 0) - (a.next_visit_min_spend || 0));
+
+        s.repeatCards.forEach((c, i) => {
+            const tierColor = getTierColor(c.tier);
+            
+            html += `
+                <div class="repeat-card-new stagger-in" style="animation-delay: ${0.5 + (i * 0.1)}s;">
+                    <div class="rc-header">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 10px; height: 10px; border-radius: 50%; background: ${tierColor}; box-shadow: 0 0 5px ${tierColor};"></div>
+                            <span style="font-weight: 700; color: var(--text-main); font-size: 12px;">${c.tier || "Loyalty"} Card</span>
+                        </div>
+                        <div class="rc-badge" style="background: ${tierColor}20; color: ${tierColor === '#000000' ? '#fff' : tierColor}; border: 1px solid ${tierColor}40;">
+                            ${c.description || "Customer"}
+                        </div>
+                    </div>
+                    
+                    <div class="rc-content">
+                        <!-- FLOW VISUALIZATION -->
+                        <div class="rc-flow">
+                            <!-- STEP 1: GIVE -->
+                            <div class="rc-node" style="padding-left: 0; text-align: left;">
+                                <div class="rc-node-circle" style="margin: 0 0 8px 0;">
+                                    <i class="fa fa-hand-holding-heart" style="color: var(--text-sub);"></i>
+                                </div>
+                                <div class="rc-node-title">Give Card</div>
+                                <div class="rc-node-val" contenteditable="true">${c.trigger.replace('Bill', 'Bill ')}</div>
+                            </div>
+                            
+                            <!-- STEP 2: REDEEM -->
+                            <div class="rc-node" style="padding-right: 0; text-align: right;">
+                                <div class="rc-node-circle" style="margin: 0 0 8px auto;">
+                                    <i class="fa fa-walking" style="color: var(--text-sub);"></i>
+                                </div>
+                                <div class="rc-node-title">Redeem Next Visit</div>
+                                <div class="rc-node-val">Spend <span contenteditable="true">${window.app.fmt(c.next_visit_min_spend)}</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rc-footer">
+                        <div style="font-size: 10px; color: #FFB300; text-transform: uppercase; font-weight: 800; margin-bottom: 2px;">Customer Reward</div>
+                        <div style="font-size: 18px; font-weight: 800; color: #FFB300;">
+                            <i class="fa fa-coins"></i> <span contenteditable="true">${window.app.fmt(c.next_visit_gold_reward)}</span> Gold
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+            </div>
+
+            <!-- VOUCHERS (SIMPLIFIED) -->
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;">
                 <div style="width: 24px; height: 24px; background: #FFC107; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: black; font-size: 12px;">
                     <i class="fa fa-gift"></i>
                 </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Retention (Editable)</span>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Retention Vouchers</span>
             </div>
             <div style="display: flex; overflow-x: auto; gap: 15px; padding-bottom: 20px; scroll-snap-type: x mandatory;">
         `;
 
         s.vouchers.forEach((v, i) => {
             html += `
-                <div class="card stagger-in" style="min-width: 260px; background: linear-gradient(45deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C); border-radius: 16px; padding: 20px; position: relative; overflow: hidden; animation-delay: ${i * 0.1}s; scroll-snap-align: start; color: #3e2723; aspect-ratio: 1.586/1; display: flex; flex-direction: column; justify-content: space-between;">
-                    <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 60%); pointer-events: none;"></div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; z-index: 2;">
-                        <div style="font-size: 12px; font-weight: 800; opacity: 0.8; text-transform: uppercase;">GOLD VOUCHER</div>
-                        <i class="fa fa-pencil" style="font-size: 12px; opacity: 0.5;"></i>
+                <div class="card stagger-in" style="min-width: 220px; background: linear-gradient(135deg, #2c2c2e, #1c1c1e); border: 1px solid var(--border-color); border-radius: 16px; padding: 20px; position: relative; scroll-snap-align: start; animation-delay: ${0.8 + (i * 0.1)}s;">
+                    <div style="font-size: 10px; font-weight: 800; color: #FFB300; text-transform: uppercase; margin-bottom: 10px;">Gold Voucher</div>
+                    <div style="text-align: center; padding: 15px 0; border-top: 1px dashed rgba(255,255,255,0.1); border-bottom: 1px dashed rgba(255,255,255,0.1);">
+                        <div contenteditable="true" style="font-size: 28px; font-weight: 800; color: white;">${window.app.fmt(v.amount)}</div>
+                        <div style="font-size: 9px; color: var(--text-sub); margin-top: 5px;">ON BILL > ${window.app.fmt(v.threshold)}</div>
                     </div>
-                    <div style="text-align: center; z-index: 2;">
-                        <div contenteditable="true" style="font-size: 32px; font-weight: 800;">${window.app.fmt(v.amount)}</div>
-                        <div style="font-size: 10px; font-weight: 700; margin-top: 5px;">ON BILLS ABOVE <span contenteditable="true">${window.app.fmt(v.threshold)}</span></div>
-                    </div>
-                    <div contenteditable="true" style="font-size: 9px; font-weight: 600; text-align: center; opacity: 0.8; z-index: 2;">${v.desc}</div>
+                    <div contenteditable="true" style="font-size: 10px; text-align: center; margin-top: 10px; color: var(--text-sub);">${v.desc}</div>
                 </div>
             `;
         });
 
         html += `
             </div>
-            <!-- REPEAT CARDS -->
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 20px;">
-                <div style="width: 24px; height: 24px; background: #4CAF50; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
-                    <i class="fa fa-id-card"></i>
-                </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Repeat Card Strategies (High to Low)</span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 15px;">
-        `;
 
-        const getCardColor = (tier) => {
-            const t = tier?.toLowerCase() || "";
-            if (t.includes("black") || t.includes("vip")) return "linear-gradient(135deg, #2c3e50, #000000)";
-            if (t.includes("platinum") || t.includes("high")) return "linear-gradient(135deg, #455a64, #263238)";
-            if (t.includes("gold") || t.includes("mid")) return "linear-gradient(135deg, #FFC107, #FF9800)";
-            return "linear-gradient(135deg, #bdc3c7, #2c3e50)";
-        };
-        
-        s.repeatCards.sort((a,b) => (b.next_visit_min_spend || 0) - (a.next_visit_min_spend || 0));
-
-        s.repeatCards.forEach((c, i) => {
-            html += `
-                <div class="stagger-in" style="background: ${getCardColor(c.tier || c.description)}; border-radius: 16px; padding: 0; position: relative; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.3); color: #fff; display: flex; flex-direction: column;">
-                    <div style="padding: 15px 20px; background: rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="width: 30px; height: 22px; background: linear-gradient(135deg, #d4af37, #f1c40f); border-radius: 4px; opacity: 0.9; box-shadow: inset 0 0 5px rgba(0,0,0,0.3);"></div>
-                            <span contenteditable="true" style="font-weight: 800; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; text-shadow: 0 2px 4px rgba(0,0,0,0.5); border-bottom: 1px dashed rgba(255,255,255,0.3);">Repeat Card</span>
-                        </div>
-                        <div style="font-size: 11px; font-weight: 700; opacity: 0.8; text-transform: uppercase;">${c.description || "Loyalty"}</div>
-                    </div>
-                    <div style="padding: 20px;">
-                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 15px;">
-                            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 16px;">
-                                <i class="fa fa-hand-holding-dollar"></i>
-                            </div>
-                            <div>
-                                <div style="font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; font-weight: 700;">When to give Card?</div>
-                                <div contenteditable="true" style="font-size: 15px; font-weight: 700; border-bottom: 1px dashed rgba(255,255,255,0.3);">${c.trigger}</div>
-                            </div>
-                        </div>
-                        <div style="display: flex; justify-content: center; margin: -5px 0 10px 0; opacity: 0.4;">
-                            <i class="fa fa-arrow-down"></i>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div style="font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; font-weight: 700;">Goal (Next Visit)</div>
-                                <div style="font-size: 13px; font-weight: 600;">Spend <span contenteditable="true">${window.app.fmt(c.next_visit_min_spend)}</span></div>
-                            </div>
-                            <div style="text-align: right;">
-                                <div style="font-size: 10px; color: #FFB300; text-transform: uppercase; font-weight: 800;">Get Reward</div>
-                                <div style="font-size: 16px; font-weight: 800; color: #FFB300;"><span contenteditable="true">${window.app.fmt(c.next_visit_gold_reward)}</span> Gold</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-
-        html += `
-            </div>
             <button class="btn btn-brand ripple-effect" style="margin-top: 30px; margin-bottom: 50px;" onclick="alert('Strategy Saved! Edits applied.')">
                 Save & Onboard
             </button>

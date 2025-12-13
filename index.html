@@ -88,13 +88,33 @@
         .btn-gold { background: var(--gold-grad); color: #000; box-shadow: 0 15px 30px rgba(255, 193, 7, 0.3); }
         .ripple-effect { position: relative; overflow: hidden; transform: translate3d(0, 0, 0); }
 
-        /* EXPANDABLE MATH CARD */
-        .deal-card { transition: all 0.3s ease; cursor: pointer; }
-        .math-breakdown { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out, opacity 0.3s ease; opacity: 0; }
-        .deal-card.expanded .math-breakdown { max-height: 200px; opacity: 1; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px; }
-        .tap-hint { font-size: 9px; opacity: 0.5; margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px; transition: opacity 0.3s; }
-        .deal-card.expanded .tap-hint { opacity: 0; }
-
+        /* DEAL CARDS V2 */
+        .deal-card { transition: all 0.3s ease; cursor: pointer; position: relative; }
+        .deal-card-new { background: var(--bg-surface); border-radius: 20px; overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 20px; position: relative; box-shadow: var(--shadow-card); }
+        .deal-header { background: linear-gradient(to right, rgba(255,255,255,0.03), transparent); padding: 16px 20px; border-bottom: 1px dashed var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .deal-body { padding: 20px; }
+        
+        .deal-tag { font-size: 10px; font-weight: 800; color: var(--gold-main); background: rgba(255, 179, 0, 0.1); padding: 4px 10px; border-radius: 20px; letter-spacing: 0.5px; text-transform: uppercase; border: 1px solid rgba(255, 179, 0, 0.2); }
+        
+        .deal-price-box { background: var(--bg-input); border-radius: 12px; padding: 15px; display: flex; align-items: center; justify-content: space-between; margin-top: 15px; border: 1px solid var(--border-color); }
+        .price-label { font-size: 10px; color: var(--text-sub); text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+        
+        .math-breakdown { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out, opacity 0.3s ease; opacity: 0; background: rgba(0,0,0,0.2); }
+        .deal-card.expanded .math-breakdown { max-height: 250px; opacity: 1; border-top: 1px solid var(--border-color); }
+        
+        /* REPEAT CARDS V2 */
+        .repeat-card-new { background: var(--bg-surface); border-radius: 18px; margin-bottom: 15px; border: 1px solid var(--border-color); overflow: hidden; position: relative; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+        .rc-header { padding: 12px 18px; background: rgba(255,255,255,0.03); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
+        .rc-badge { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; padding: 4px 8px; border-radius: 6px; color: #000; }
+        .rc-content { padding: 20px; }
+        .rc-flow { display: flex; align-items: center; justify-content: space-between; position: relative; }
+        .rc-flow::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--border-color); z-index: 0; border-top: 1px dashed rgba(255,255,255,0.1); }
+        .rc-node { position: relative; z-index: 2; background: var(--bg-surface); padding: 0 10px; text-align: center; }
+        .rc-node-circle { width: 40px; height: 40px; border-radius: 50%; background: var(--bg-input); display: flex; align-items: center; justify-content: center; margin: 0 auto 8px auto; border: 1px solid var(--border-color); font-size: 14px; }
+        .rc-node-title { font-size: 10px; color: var(--text-sub); text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+        .rc-node-val { font-size: 14px; font-weight: 800; color: var(--text-main); }
+        .rc-footer { background: rgba(255, 179, 0, 0.1); padding: 12px; text-align: center; border-top: 1px solid rgba(255, 179, 0, 0.2); }
+        
         /* NAV */
         .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: var(--nav-height); background: var(--bg-glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; align-items: center; padding-bottom: 20px; z-index: 600; }
         .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; color: var(--text-sub); transition: 0.3s; cursor: pointer; opacity: 0.5; }
@@ -123,16 +143,17 @@
         .cat-item { background: var(--bg-input); padding: 18px 8px; border-radius: 20px; text-align: center; border: 2px solid transparent; transition: 0.2s; color: var(--text-main); cursor: pointer; }
         .cat-item.selected { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
 
-        /* LOADER */
+        /* LOADER V2 */
         .loader-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-body); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; animation: fadeIn 0.3s ease; }
-        .brand-pulse { width: 80px; height: 80px; background: var(--bg-input); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; color: var(--brand); margin-bottom: 25px; box-shadow: 0 0 0 0 rgba(255, 87, 34, 0.4); animation: pulse-ring 2s infinite; }
+        .brand-pulse { width: 60px; height: 60px; background: var(--bg-input); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--brand); margin-bottom: 25px; box-shadow: 0 0 0 0 rgba(255, 87, 34, 0.4); animation: pulse-ring 2s infinite; }
         @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(255, 87, 34, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(255, 87, 34, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 87, 34, 0); } }
-        .fade-text { animation: fadeText 2.5s infinite; }
-        @keyframes fadeText { 0% { opacity: 0; transform: translateY(5px); } 15% { opacity: 1; transform: translateY(0); } 85% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-5px); } }
-        .progress-bar-bg { width: 220px; height: 6px; background: var(--bg-input); border-radius: 10px; overflow: hidden; position: relative; }
-        .progress-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--brand-gradient); width: 0%; animation: loadProgress 15s ease-out forwards; }
-        @keyframes loadProgress { 0% { width: 0%; } 100% { width: 95%; } }
-
+        
+        .loader-checklist { width: 260px; text-align: left; }
+        .loader-step { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; opacity: 0.3; transition: all 0.4s ease; transform: translateX(-10px); }
+        .loader-step.active { opacity: 1; transform: translateX(0); font-weight: 600; }
+        .loader-step.done { opacity: 0.5; color: var(--success); transform: translateX(0); }
+        .step-icon { width: 20px; text-align: center; }
+        
         /* API KEY SPECIFIC */
         .api-key-input { margin: 15px 0; font-size: 14px; text-align: center; }
         .hf-badge { display: inline-block; padding: 4px 8px; background: #4285F4; color: #fff; border-radius: 4px; font-weight: 800; font-size: 10px; margin-bottom: 10px; }
@@ -169,16 +190,9 @@
         <main id="scroll-container" onscroll="app.handleScroll()">
             <!-- LOADER -->
             <div id="loader" class="loader-overlay" style="display: none;">
-                <div class="brand-pulse"><i class="fa fa-bolt"></i></div>
-                <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 8px;">Building Strategy</h2>
-                <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 30px;" id="loader-subtitle">for your business</p>
-                <div class="progress-bar-bg" style="margin-bottom: 30px;">
-                    <div class="progress-bar-fill"></div>
-                </div>
-                <div style="height: 50px; display: flex; align-items: center; justify-content: center; width: 85%; text-align: center;">
-                    <div id="loader-text" class="fade-text" style="font-size: 14px; color: var(--text-main); font-weight: 600; line-height: 1.4;">
-                       Reading Menu...
-                    </div>
+                <div class="brand-pulse"><i class="fa fa-robot"></i></div>
+                <div class="loader-checklist" id="loader-list">
+                    <!-- Injected via JS -->
                 </div>
             </div>
 
