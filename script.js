@@ -24,7 +24,8 @@ const state = {
     apiKey: null,
     strategy: null,
     loaderInterval: null,
-    manualItems: [{name:"", price:""}, {name:"", price:""}, {name:"", price:""}]
+    manualItems: [{name:"", price:""}, {name:"", price:""}, {name:"", price:""}],
+    installPrompt: null
 };
 
 // Try to load API Key safely
@@ -56,8 +57,41 @@ window.app = {
                     });
                 }
             });
+
+            // Register Service Worker for PWA
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(() => console.log('Service Worker Registered'))
+                    .catch(e => console.log('SW Registration Failed:', e));
+            }
+
+            // Handle Install Prompt
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                state.installPrompt = e;
+                const btn = document.getElementById('install-btn');
+                if (btn) btn.style.display = 'flex';
+            });
+
+            window.addEventListener('appinstalled', () => {
+                state.installPrompt = null;
+                const btn = document.getElementById('install-btn');
+                if (btn) btn.style.display = 'none';
+            });
+
         } catch (err) {
             console.error("Init error:", err);
+        }
+    },
+
+    installPWA: async () => {
+        if (!state.installPrompt) return;
+        state.installPrompt.prompt();
+        const { outcome } = await state.installPrompt.userChoice;
+        if (outcome === 'accepted') {
+            state.installPrompt = null;
+            const btn = document.getElementById('install-btn');
+            if (btn) btn.style.display = 'none';
         }
     },
 
