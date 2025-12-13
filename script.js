@@ -421,16 +421,15 @@ Return a VALID JSON object with this exact structure:
 }
 
 Tasks:
-1. 10 Big Combo Deals (Price ~${state.aov}, Gold ~15%).
-2. 5 High Value Gold Vouchers (Value ${Math.round(0.3*state.aov)}-${Math.round(0.6*state.aov)}).
-3. 4 Repeat/Loyalty Cards (2 low tier, 2 high tier).
+1. EXACTLY 10 Big Combo Deals (Price ~${state.aov}, Gold ~15%).
+2. EXACTLY 5 High Value Gold Vouchers (Value ${Math.round(0.3*state.aov)}-${Math.round(0.6*state.aov)}).
+3. 4 Repeat/Loyalty Cards (For: Low value, Mid value, High value, VIP).
 
 Input Data: ${inputMenu}
 
 Ensure valid JSON. No Markdown. [/INST]`;
 
         try {
-            // Using Mistral 7B (lighter model) instead of 8x7B (heavy model) for better reliability
             const response = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2', {
                 method: 'POST',
                 headers: {
@@ -439,7 +438,7 @@ Ensure valid JSON. No Markdown. [/INST]`;
                 },
                 body: JSON.stringify({
                     inputs: prompt,
-                    parameters: { max_new_tokens: 3000, return_full_text: false, temperature: 0.7 }
+                    parameters: { max_new_tokens: 3500, return_full_text: false, temperature: 0.7 }
                 })
             });
 
@@ -451,43 +450,67 @@ Ensure valid JSON. No Markdown. [/INST]`;
             const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
             if (jsonMatch) jsonText = jsonMatch[0];
 
-            state.strategy = JSON.parse(jsonText);
+            const parsed = JSON.parse(jsonText);
+            
+            // Validate limits
+            if (!parsed.deals || parsed.deals.length < 5) throw new Error("Incomplete deals");
+            
+            state.strategy = parsed;
             window.app.renderStrategy();
 
         } catch (err) {
-            console.warn("AI API failed or busy, using smart fallback engine:", err);
+            console.warn("AI API failed or incomplete, using robust fallback engine:", err);
             
-            // Smart Fallback Engine - Generates strategy locally without alerting user
+            // --- ROBUST FALLBACK ENGINE ---
+            // Guarantees 10 deals, 5 vouchers, 4 cards
+            
             const catId = state.category ? state.category.id : 'Other';
             const aov = Number(state.aov) || 500;
             
-            // Context-aware defaults
-            let dTitle = "Super Saver Combo";
-            let dItems = "Bestseller + Side + Drink";
-            
-            if (catId === 'Restaurant') { dTitle = "Family Feast"; dItems = "2 Mains + 2 Starters + Drinks"; }
-            else if (catId === 'Cafe') { dTitle = "Coffee Date"; dItems = "2 Cappuccinos + 2 Pastries"; }
-            else if (catId === 'Retail') { dTitle = "Style Bundle"; dItems = "Top + Bottom + Accessory"; }
-            else if (catId === 'Gym') { dTitle = "Fitness Pack"; dItems = "Protein Tub + Shaker"; }
-            else if (catId === 'Grocery') { dTitle = "Monthly Essentials"; dItems = "Rice + Oil + Spices Pack"; }
+            // 1. Generate 10 Deals based on AOV multipliers
+            const deals = [];
+            const dealTypes = [
+                { t: "Mega Combo", m: 1.5, g: 0.15, d: "High Value Family Pack" },
+                { t: "Family Feast", m: 1.8, g: 0.15, d: "For groups of 4" },
+                { t: "Bestseller Trio", m: 1.2, g: 0.12, d: "Top 3 items together" },
+                { t: "Date Night", m: 1.4, g: 0.15, d: "Perfect for couples" },
+                { t: "Budget Buster", m: 0.8, g: 0.10, d: "Affordable luxury" },
+                { t: "Lunch Special", m: 0.7, g: 0.10, d: "Mid-day offer" },
+                { t: "Snack Attack", m: 0.5, g: 0.08, d: "Quick bites" },
+                { t: "Premium Selection", m: 2.0, g: 0.20, d: "Luxury experience" },
+                { t: "Tasting Menu", m: 1.6, g: 0.18, d: "Try everything" },
+                { t: "Starter Pack", m: 0.6, g: 0.10, d: "First time try" }
+            ];
 
-            state.strategy = {
-                deals: [
-                    {title: dTitle, items: dItems, price: aov, gold: Math.round(aov * 0.15), description: "High value combo"},
-                    {title: "Bestseller Pair", items: "Most popular item + Add-on", price: Math.round(aov * 0.8), gold: Math.round(aov * 0.12), description: "Volume driver"},
-                    {title: "Trial Offer", items: "Starter Pack", price: Math.round(aov * 0.5), gold: Math.round(aov * 0.1), description: "Acquisition hook"}
-                ],
-                vouchers: [
-                    {threshold: Math.round(aov * 1.5), amount: Math.round(aov * 0.3), desc: "Spend More, Get More"},
-                    {threshold: Math.round(aov * 2.5), amount: Math.round(aov * 0.6), desc: "VIP Reward"}
-                ],
-                repeatCards: [
-                    {offer_title: "Silver Member", trigger: "2nd Visit", next_visit_min_spend: aov, next_visit_gold_reward: Math.round(aov * 0.1), tier: "Silver", description: "Basic retention"},
-                    {offer_title: "Gold VIP", trigger: "5th Visit", next_visit_min_spend: Math.round(aov * 1.2), next_visit_gold_reward: Math.round(aov * 0.25), tier: "Gold", description: "Loyalty driver"},
-                    {offer_title: "Platinum Elite", trigger: "10th Visit", next_visit_min_spend: Math.round(aov * 1.5), next_visit_gold_reward: Math.round(aov * 0.4), tier: "Platinum", description: "Advocate status"}
-                ]
-            };
-            
+            dealTypes.forEach(dt => {
+                const p = Math.round(aov * dt.m);
+                deals.push({
+                    title: dt.t,
+                    items: `${state.category.label} Bundle`,
+                    price: p,
+                    gold: Math.round(p * dt.g),
+                    description: dt.d
+                });
+            });
+
+            // 2. Generate 5 Vouchers (Mix of High/Mid)
+            const vouchers = [
+                { threshold: Math.round(aov * 1.5), amount: Math.round(aov * 0.3), desc: "Spend More, Get More (Mid)" },
+                { threshold: Math.round(aov * 2.5), amount: Math.round(aov * 0.6), desc: "High Roller Reward" },
+                { threshold: Math.round(aov * 3.5), amount: Math.round(aov * 0.8), desc: "Celebration Bonus" },
+                { threshold: Math.round(aov * 1.2), amount: Math.round(aov * 0.15), desc: "Easy Entry Reward" },
+                { threshold: Math.round(aov * 5.0), amount: Math.round(aov * 1.5), desc: "VIP Whale Reward" }
+            ];
+
+            // 3. Generate 4 Repeat Cards (Targeted)
+            const repeatCards = [
+                { offer_title: "Silver Card", trigger: "Bill ₹" + Math.round(aov*0.5) + "-" + Math.round(aov), next_visit_min_spend: aov, next_visit_gold_reward: Math.round(aov * 0.15), tier: "Silver", description: "Convert low spenders" },
+                { offer_title: "Gold Card", trigger: "Bill ₹" + Math.round(aov) + "-" + Math.round(aov*1.5), next_visit_min_spend: Math.round(aov * 1.5), next_visit_gold_reward: Math.round(aov * 0.30), tier: "Gold", description: "Upsell regulars" },
+                { offer_title: "Platinum Card", trigger: "Bill > ₹" + Math.round(aov*2), next_visit_min_spend: Math.round(aov * 2.5), next_visit_gold_reward: Math.round(aov * 0.6), tier: "Platinum", description: "Retain high value" },
+                { offer_title: "Black Card", trigger: "VIP / Influencers", next_visit_min_spend: Math.round(aov * 3), next_visit_gold_reward: Math.round(aov * 1.0), tier: "Black", description: "Exclusive club" }
+            ];
+
+            state.strategy = { deals, vouchers, repeatCards };
             window.app.renderStrategy();
         } finally {
             window.app.toggleLoader(false);
@@ -507,14 +530,14 @@ Ensure valid JSON. No Markdown. [/INST]`;
                 <div style="width: 24px; height: 24px; background: #FF5722; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
                     <i class="fa fa-magnet"></i>
                 </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Acquisition (Big Combos)</span>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Acquisition (10 Big Combos)</span>
             </div>
             <div>
         `;
 
         s.deals.forEach((deal, idx) => {
             html += `
-                <div class="card stagger-in" style="padding: 0; overflow: visible; margin-bottom: 20px; background: transparent; border: none; box-shadow: none; animation-delay: ${idx * 0.1}s;">
+                <div class="card stagger-in" style="padding: 0; overflow: visible; margin-bottom: 20px; background: transparent; border: none; box-shadow: none; animation-delay: ${idx * 0.05}s;">
                     <div style="background: var(--bg-surface); border-radius: 16px; overflow: hidden; position: relative; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
                         <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 6px; background: var(--gold-grad);"></div>
                         <div style="padding: 20px 20px 20px 26px; display: flex; flex-direction: column; gap: 10px;">
@@ -544,7 +567,7 @@ Ensure valid JSON. No Markdown. [/INST]`;
                 <div style="width: 24px; height: 24px; background: #FFC107; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: black; font-size: 12px;">
                     <i class="fa fa-gift"></i>
                 </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Retention (Gold Vouchers)</span>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Retention (5 Gold Vouchers)</span>
             </div>
             <div style="display: flex; overflow-x: auto; gap: 15px; padding-bottom: 20px; scroll-snap-type: x mandatory;">
         `;
@@ -573,7 +596,7 @@ Ensure valid JSON. No Markdown. [/INST]`;
                 <div style="width: 24px; height: 24px; background: #4CAF50; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
                     <i class="fa fa-id-card"></i>
                 </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Loyalty (Repeat Cards)</span>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Loyalty (Targeted Cards)</span>
             </div>
             <div style="display: flex; flex-direction: column; gap: 15px;">
         `;
@@ -598,10 +621,10 @@ Ensure valid JSON. No Markdown. [/INST]`;
                     <div style="padding: 20px;">
                         <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 15px;">
                             <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 16px;">
-                                <i class="fa fa-shopping-basket"></i>
+                                <i class="fa fa-user-tag"></i>
                             </div>
                             <div>
-                                <div style="font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; font-weight: 700;">If Customer Buys</div>
+                                <div style="font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; font-weight: 700;">Target Audience</div>
                                 <div style="font-size: 15px; font-weight: 700;">${c.trigger}</div>
                             </div>
                         </div>
@@ -610,7 +633,7 @@ Ensure valid JSON. No Markdown. [/INST]`;
                         </div>
                         <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <div style="font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; font-weight: 700;">Next Visit Offer</div>
+                                <div style="font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; font-weight: 700;">Next Visit Goal</div>
                                 <div style="font-size: 13px; font-weight: 600;">Spend ${window.app.fmt(c.next_visit_min_spend)}</div>
                             </div>
                             <div style="text-align: right;">
