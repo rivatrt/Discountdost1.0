@@ -11,14 +11,14 @@ const CATEGORIES = [
     { id: 'Other', icon: 'fa-store', label: 'Other', brandRef: "premium loyalty programs" }
 ];
 
-const GROWTH_QUOTES = [
-    "Customer retention is the new acquisition.",
-    "Discounts bring them in, value brings them back.",
-    "Your menu is your best salesperson.",
-    "Loyalty is earned, not bought.",
-    "Data beats opinion every single time.",
-    "Small changes in pricing, big changes in profit.",
-    "The goal is not to sell, but to help them buy."
+const MERCHANT_TIPS = [
+    "Increasing customer retention by just 5% can boost profits by 25% to 95%.",
+    "65% of a company's business comes from existing customers.",
+    "Repeat customers spend 67% more than new customers.",
+    "A 2% increase in customer retention has the same effect as decreasing costs by 10%.",
+    "It costs 5x more to acquire a new customer than to keep an existing one.",
+    "Loyal customers are 50% more likely to try new products.",
+    "Personalized rewards increase redemption rates by 6x."
 ];
 
 // --- APP STATE ---
@@ -34,7 +34,7 @@ const state = {
     apiKey: null,
     strategy: null,
     loaderInterval: null,
-    quoteInterval: null,
+    tipInterval: null,
     loaderStepIndex: 0,
     manualItems: [{name:"", price:""}, {name:"", price:""}, {name:"", price:""}],
     installPrompt: null,
@@ -233,14 +233,14 @@ window.app = {
         const price = parseInt(priceText) || 0;
 
         // Recalculate Logic
-        // Scenario: Price 1000. 
-        // Platform Fee (10%): 100.
-        // GST (18% on Fee): 18.
-        // Gold Given to User (Cost to Merchant): 10% approx -> 100.
+        // Logic: Price is what user pays. 
+        // Gold (given to user) is ~10% of price (Cost to merchant).
+        // Platform Fee is 10% of Price.
+        // GST is 18% of Platform Fee.
         
+        const gold = Math.max(30, Math.round(price * 0.10)); // ~10% discount as gold
         const platformFee = Math.round(price * 0.10);
         const gst = Math.round(platformFee * 0.18);
-        const gold = Math.max(30, Math.round(price * 0.10)); // ~10% discount as gold
         
         // Net = Customer Payment - Cost of Gold - Fee - GST
         const net = price - gold - platformFee - gst;
@@ -512,14 +512,14 @@ window.app = {
                 `;
             }
 
-            // 2. START QUOTES
-            const rotateQuote = () => {
-                const q = GROWTH_QUOTES[Math.floor(Math.random() * GROWTH_QUOTES.length)];
-                quoteBox.innerText = `"${q}"`;
+            // 2. START TIPS ROTATION (MERCHANT TIPS)
+            const rotateTip = () => {
+                const tip = MERCHANT_TIPS[Math.floor(Math.random() * MERCHANT_TIPS.length)];
+                quoteBox.innerText = tip;
             };
-            rotateQuote(); // Initial
-            if (state.quoteInterval) clearInterval(state.quoteInterval);
-            state.quoteInterval = setInterval(rotateQuote, 4000); // Change every 4s
+            rotateTip(); // Initial
+            if (state.tipInterval) clearInterval(state.tipInterval);
+            state.tipInterval = setInterval(rotateTip, 4000); // Change every 4s
 
             // 3. GENERATE CHECKLIST
             const steps = isScanning ? 
@@ -565,7 +565,7 @@ window.app = {
         } else {
             loader.style.display = 'none';
             clearInterval(state.loaderInterval);
-            clearInterval(state.quoteInterval);
+            clearInterval(state.tipInterval);
         }
     },
 
@@ -780,4 +780,100 @@ Rules:
                 </div>
                 <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Gold Vouchers (Retention)</span>
             </div>
-            <div style="display: flex; overflow-x: auto; gap:
+            <div style="display: flex; overflow-x: auto; gap: 15px; padding-bottom: 20px; scroll-snap-type: x mandatory;">
+        `;
+
+        s.vouchers.forEach((v, i) => {
+            html += `
+                <div class="voucher-card-gold stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${0.5 + (i * 0.1)}s;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; opacity: 0.8;">VOUCHER</div>
+                        <div style="font-size: 10px; font-weight: 700; background: #000; color: #FFC107; padding: 2px 6px; border-radius: 4px;">GOLD</div>
+                    </div>
+                    <div style="text-align: center; padding: 15px 0;">
+                        <div contenteditable="true" style="font-size: 32px; font-weight: 900; letter-spacing: -1px;">${window.app.fmt(v.amount)}</div>
+                        <div style="font-size: 10px; font-weight: 700; margin-top: 5px; opacity: 0.7;">ON BILL > ${window.app.fmt(v.threshold)}</div>
+                    </div>
+                    <div contenteditable="true" style="font-size: 11px; text-align: center; font-weight: 600; opacity: 0.8; line-height: 1.4;">${v.desc}</div>
+                    
+                    <div class="math-breakdown" style="margin-top: 15px; border-top: 1px solid rgba(0,0,0,0.1); color: #000;">
+                        <div style="padding: 10px 0 0 0; font-size: 10px; opacity: 0.7;">
+                            Tap to edit logic. These vouchers incentivize customers to spend above ${window.app.fmt(v.threshold)} to unlock ${window.app.fmt(v.amount)} for their next visit.
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+            </div>
+            
+            <!-- PHYSICAL REPEAT CARD STRATEGY -->
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;">
+                <div style="width: 24px; height: 24px; background: #4CAF50; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
+                    <i class="fa fa-credit-card"></i>
+                </div>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Repeat Business Card</span>
+            </div>
+            
+            <div class="repeat-card-wrapper stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: 1s;">
+                <!-- VISUAL CARD FRONT -->
+                <div class="repeat-card-visual">
+                    <div class="rc-logo-corner"><i class="fa fa-infinity"></i></div>
+                    <div>
+                        <div class="rc-chip"></div>
+                        <div class="rc-store-name">${state.storeName || "STORE NAME"}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.6); margin-bottom: 4px;">Platinum Member</div>
+                        <div class="rc-offer-main">
+                             Get <span class="gold-text">${window.app.fmt(s.repeatCard.next_visit_gold_reward)} Gold</span> on every visit
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EDIT PANEL (HIDDEN BY DEFAULT) -->
+                <div class="math-breakdown">
+                    <div style="padding: 20px;">
+                        <div style="font-size: 11px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 15px;">Configure Loyalty Logic</div>
+                        
+                        <div class="rc-input-row">
+                            <span>Give Gold When Bill ></span>
+                            <div class="rc-val-edit" contenteditable="true">${s.repeatCard.trigger.replace(/[^0-9]/g,'') || 500}</div>
+                        </div>
+
+                        <div class="rc-input-row">
+                            <span>Gold Reward Amount</span>
+                            <div class="rc-val-edit inp-rc-gold" contenteditable="true" oninput="app.updateRepeatCard()">${window.app.fmt(s.repeatCard.next_visit_gold_reward)}</div>
+                        </div>
+
+                        <div class="rc-input-row">
+                            <span>Redeem Minimum Bill</span>
+                            <div class="rc-val-edit" contenteditable="true">${window.app.fmt(s.repeatCard.next_visit_min_spend)}</div>
+                        </div>
+
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-sub); line-height: 1.4;">
+                            <i class="fa fa-info-circle"></i> This card is digital. Customers receive Gold automatically based on these rules, increasing retention frequency by ~40%.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-brand ripple-effect" style="margin-top: 40px;" onclick="app.shareStrategy()">
+                <i class="fa fa-file-pdf"></i> Download Strategy PDF
+            </button>
+             <button class="btn ripple-effect" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-sub); margin-bottom: 50px;" onclick="location.reload()">
+                Reset Strategy
+            </button>
+        `;
+
+        container.innerHTML = html;
+    }
+};
+
+// Initialize
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.app.init);
+} else {
+    window.app.init();
+}
