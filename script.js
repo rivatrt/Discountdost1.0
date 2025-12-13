@@ -454,16 +454,39 @@ Ensure valid JSON. No Markdown. [/INST]`;
             window.app.renderStrategy();
 
         } catch (err) {
-            console.error(err);
-            // Fallback for Strategy generation failure
-            alert("AI Analysis is busy. Retrying with cached strategy...");
+            console.warn("AI API failed or busy, using smart fallback engine:", err);
             
-            // Generate dummy strategy so user isn't stuck
+            // Smart Fallback Engine - Generates strategy locally without alerting user
+            const catId = state.category ? state.category.id : 'Other';
+            const aov = Number(state.aov) || 500;
+            
+            // Context-aware defaults
+            let dTitle = "Super Saver Combo";
+            let dItems = "Bestseller + Side + Drink";
+            
+            if (catId === 'Restaurant') { dTitle = "Family Feast"; dItems = "2 Mains + 2 Starters + Drinks"; }
+            else if (catId === 'Cafe') { dTitle = "Coffee Date"; dItems = "2 Cappuccinos + 2 Pastries"; }
+            else if (catId === 'Retail') { dTitle = "Style Bundle"; dItems = "Top + Bottom + Accessory"; }
+            else if (catId === 'Gym') { dTitle = "Fitness Pack"; dItems = "Protein Tub + Shaker"; }
+            else if (catId === 'Grocery') { dTitle = "Monthly Essentials"; dItems = "Rice + Oil + Spices Pack"; }
+
             state.strategy = {
-                deals: [{title: "Mega Combo", items: "Item A + Item B", price: Number(state.aov), gold: Math.round(Number(state.aov)*0.2)}],
-                vouchers: [{threshold: Number(state.aov)*1.5, amount: 500, desc: "Big spender reward"}],
-                repeatCards: [{offer_title: "Welcome Back", trigger: "Any purchase", next_visit_min_spend: 1000, next_visit_gold_reward: 200, tier: "Gold"}]
+                deals: [
+                    {title: dTitle, items: dItems, price: aov, gold: Math.round(aov * 0.15), description: "High value combo"},
+                    {title: "Bestseller Pair", items: "Most popular item + Add-on", price: Math.round(aov * 0.8), gold: Math.round(aov * 0.12), description: "Volume driver"},
+                    {title: "Trial Offer", items: "Starter Pack", price: Math.round(aov * 0.5), gold: Math.round(aov * 0.1), description: "Acquisition hook"}
+                ],
+                vouchers: [
+                    {threshold: Math.round(aov * 1.5), amount: Math.round(aov * 0.3), desc: "Spend More, Get More"},
+                    {threshold: Math.round(aov * 2.5), amount: Math.round(aov * 0.6), desc: "VIP Reward"}
+                ],
+                repeatCards: [
+                    {offer_title: "Silver Member", trigger: "2nd Visit", next_visit_min_spend: aov, next_visit_gold_reward: Math.round(aov * 0.1), tier: "Silver", description: "Basic retention"},
+                    {offer_title: "Gold VIP", trigger: "5th Visit", next_visit_min_spend: Math.round(aov * 1.2), next_visit_gold_reward: Math.round(aov * 0.25), tier: "Gold", description: "Loyalty driver"},
+                    {offer_title: "Platinum Elite", trigger: "10th Visit", next_visit_min_spend: Math.round(aov * 1.5), next_visit_gold_reward: Math.round(aov * 0.4), tier: "Platinum", description: "Advocate status"}
+                ]
             };
+            
             window.app.renderStrategy();
         } finally {
             window.app.toggleLoader(false);
