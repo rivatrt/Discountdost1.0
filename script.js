@@ -629,6 +629,7 @@ Requirements:
    - Use 'deal_price' = Sum of items (Full MRP). We do NOT discount cash. We give GOLD.
    - Gold Value should be ~10-15% of deal_price.
    - Titles should use triggers like "Limited Edition", "Weekend Loot", "Family Feast".
+   - CRITICAL: In deal description and product info, ONLY show real data and prices from the input menu. Do not invent items.
 
 2. 5 Gold Vouchers:
    - For retention. "Spend ₹X, Get ₹Y Gold Next Time".
