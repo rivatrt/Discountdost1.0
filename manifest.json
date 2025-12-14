@@ -1,0 +1,24 @@
+{
+  "name": "Discount Dost",
+  "short_name": "Discount Dost",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait",
+  "scope": "./",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjkwIiBmaWxsPSIjMDAwMDAwIi8+PHBhdGggZD0iTTE2NSAxMTAgSCAyNjUgQyAzNTUgMTEwIDQxNSAxNzUgNDE1IDI1NiBDIDQxNSAzMzcgMzU1IDQwMiAyNjUgNDAyIEggMTY1IFYgMTEwIFogTSAyMjUgMTcwIFYgMzQyIEggMjY1IEMgMzE1IDM0MiAzNTUgMzA1IDM1NSAyNTYgQyAzNTUgMjA3IDMxNSAxNzAgMjY1IDE3MCBVIDIyNSBaIiBmaWxsPSIjRkZDMTA3Ii8+PC9zdmc+",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjkwIiBmaWxsPSIjMDAwMDAwIi8+PHBhdGggZD0iTTE2NSAxMTAgSCAyNjUgQyAzNTUgMTEwIDQxNSAxNzUgNDE1IDI1NiBDIDQxNSAzMzcgMzU1IDQwMiAyNjUgNDAyIEggMTY1IFYgMTEwIFogTSAyMjUgMTcwIFYgMzQyIEggMjY1IEMgMzE1IDM0MiAzNTUgMzA1IDM1NSAyNTYgQyAzNTUgMjA3IDMxNSAxNzAgMjY1IDE3MCBVIDIyNSBaIiBmaWxsPSIjRkZDMTA3Ii8+PC9zdmc+",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
