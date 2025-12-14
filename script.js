@@ -106,8 +106,7 @@ window.app = {
             window.addEventListener('beforeinstallprompt', (e) => {
                 e.preventDefault();
                 state.installPrompt = e;
-                const btn = document.getElementById('install-btn');
-                if (btn) btn.style.display = 'flex';
+                // Button is always visible per user request, so we just capture the event
             });
 
             window.addEventListener('appinstalled', () => {
@@ -122,14 +121,31 @@ window.app = {
     },
 
     installPWA: async () => {
-        if (!state.installPrompt) return;
-        state.installPrompt.prompt();
-        const { outcome } = await state.installPrompt.userChoice;
-        if (outcome === 'accepted') {
-            state.installPrompt = null;
-            const btn = document.getElementById('install-btn');
-            if (btn) btn.style.display = 'none';
+        // 1. Try Native Android Prompt
+        if (state.installPrompt) {
+            state.installPrompt.prompt();
+            const { outcome } = await state.installPrompt.userChoice;
+            if (outcome === 'accepted') {
+                state.installPrompt = null;
+                const btn = document.getElementById('install-btn');
+                if (btn) btn.style.display = 'none';
+            }
+            return;
         }
+
+        // 2. Detect iOS for Instructions
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isIOS) {
+            document.getElementById('ios-install-modal').style.display = 'flex';
+            return;
+        }
+
+        // 3. Fallback for others (Desktop/Firefox)
+        alert("To install app:\nTap your browser's menu (⋮) and select 'Install App' or 'Add to Home Screen'.");
+    },
+    
+    closeIosModal: () => {
+        document.getElementById('ios-install-modal').style.display = 'none';
     },
 
     saveApiKey: () => {
