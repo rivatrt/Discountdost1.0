@@ -10,7 +10,10 @@
     
     <title>Discount Dost</title>
     
+    <!-- Updated Favicon with New D Logo -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%23000'/%3E%3Cpath d='M160 112h110c71.8 0 130 58.2 130 130v28c0 71.8-58.2 130-130 130H160V112zm60 60v160h50c38.7 0 70-31.3 70-70v-20c0-38.7-31.3-70-70-70h-50z' fill='%23FF5722'/%3E%3C/svg%3E">
     <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiRGlzY291bnQgRG9zdCBCdXNpbmVzcyIsImNob3J0X25hbWUiOiJEaXNjb3VudCBEb3N0Iiwic3RhcnRfdXJsIjoiLi8iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjMDAwMDAwIiwidHlwZSI6ImltYWdlL3BuZyIsImljb25zIjpbeyJzcmMiOiJodHRwczovL2Nkbi1pY29ucy1wbmcuZmxhdGljb24uY29tLzUxMi8yNTE5LzI1MTk3NTcucG5nIiwic2l6ZXMiOiI1MTJ4NTEyIiwidHlwZSI6ImltYWdlL3BuZyJ9XX0=">
+    
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -97,14 +100,14 @@
         /* PREMIUM LOGO */
         .brand-pill { 
             display: inline-flex; align-items: center; gap: 8px; 
-            padding: 6px 12px; background: var(--bg-surface); 
-            border-radius: 30px; color: var(--brand); 
+            padding: 4px 12px 4px 4px; background: var(--bg-surface); 
+            border-radius: 30px; color: var(--text-main); 
             font-size: 11px; font-weight: 800; 
             text-transform: uppercase; letter-spacing: 0.5px; 
             margin-bottom: 8px; border: 1px solid var(--border-color); 
             transition: all 0.3s var(--ease-oneui); opacity: 1; transform: translateY(0); 
         }
-        .logo-svg { width: 14px; height: 14px; fill: currentColor; }
+        .logo-svg { width: 24px; height: 24px; border-radius: 6px; }
 
         h1 { font-size: 38px; font-weight: 800; margin: 0; letter-spacing: -1px; line-height: 1.1; transition: font-size 0.4s var(--ease-oneui); color: var(--text-main); }
         
@@ -256,13 +259,13 @@
         /* BRAND PULSE ANIMATION */
         .loader-orbit-container { position: relative; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; margin-bottom: 40px; }
         .loader-logo { font-size: 50px; color: var(--brand); z-index: 2; animation: logoBreath 2s infinite ease-in-out; }
-        .loader-logo svg { width: 50px; height: 50px; fill: var(--brand); }
+        .loader-logo svg { width: 80px; height: 80px; filter: drop-shadow(0 0 10px rgba(255, 87, 34, 0.4)); }
         .loader-ripple { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--brand); opacity: 0; animation: rippleEffect 2s infinite ease-out; }
         .loader-ripple:nth-child(2) { animation-delay: 0.6s; }
         .loader-ripple:nth-child(3) { animation-delay: 1.2s; }
         
         @keyframes rippleEffect { 0% { transform: scale(0.5); opacity: 0.8; border-width: 4px; } 100% { transform: scale(1.5); opacity: 0; border-width: 0px; } }
-        @keyframes logoBreath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); filter: drop-shadow(0 0 10px var(--brand)); } }
+        @keyframes logoBreath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); filter: drop-shadow(0 0 20px var(--brand)); } }
 
         /* QUOTES & TIPS */
         .quote-container { margin-top: 10px; text-align: center; max-width: 85%; min-height: 80px; opacity: 0.8; }
@@ -330,9 +333,10 @@
             </div>
             <div class="header-content-wrapper" id="header-content">
                 <div class="brand-pill">
-                    <!-- CUSTOM SVG LOGO -->
-                    <svg class="logo-svg" viewBox="0 0 24 24">
-                       <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                    <!-- NEW PROFESSIONAL D LOGO -->
+                    <svg class="logo-svg" viewBox="0 0 512 512">
+                        <rect width="512" height="512" rx="100" fill="#000"/>
+                        <path d="M160 112h110c71.8 0 130 58.2 130 130v28c0 71.8-58.2 130-130 130H160V112zm60 60v160h50c38.7 0 70-31.3 70-70v-20c0-38.7-31.3-70-70-70h-50z" fill="#FF5722"/>
                     </svg>
                     Discount Dost
                 </div>
@@ -348,8 +352,10 @@
                     <div class="loader-ripple"></div>
                     <div class="loader-ripple"></div>
                     <div class="loader-logo">
-                        <svg viewBox="0 0 24 24">
-                           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                         <!-- LOADER D LOGO -->
+                        <svg viewBox="0 0 512 512">
+                             <rect width="512" height="512" rx="100" fill="#000"/>
+                             <path d="M160 112h110c71.8 0 130 58.2 130 130v28c0 71.8-58.2 130-130 130H160V112zm60 60v160h50c38.7 0 70-31.3 70-70v-20c0-38.7-31.3-70-70-70h-50z" fill="#FF5722"/>
                         </svg>
                     </div>
                 </div>
