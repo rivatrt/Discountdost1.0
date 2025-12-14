@@ -21,6 +21,12 @@ const MERCHANT_TIPS = [
     "Personalized rewards increase redemption rates by 6x."
 ];
 
+const AI_MODELS = [
+    { id: 'gemini-3-pro-preview', label: 'GEMINI 3 PRO', tier: 'High Intelligence' },
+    { id: 'gemini-2.5-flash', label: 'GEMINI 2.5 FLASH', tier: 'High Speed' },
+    { id: 'gemini-1.5-flash', label: 'GEMINI 1.5 FLASH', tier: 'Standard' }
+];
+
 // --- APP STATE ---
 const state = {
     page: 1,
@@ -224,40 +230,46 @@ window.app = {
         window.print();
     },
 
-    // --- LIVE MATH UPDATE FOR DEALS ---
+    // --- LIVE MATH UPDATE FOR DEALS (FULL EDIT) ---
     updateDealMath: (el) => {
         const card = el.closest('.deal-card');
         if (!card) return;
 
-        // Get new price from editable field
-        const priceText = el.innerText.replace(/[^0-9]/g, '');
-        const price = parseInt(priceText) || 0;
+        // helper to get number
+        const getNum = (sel) => {
+            const e = card.querySelector(sel);
+            return e ? parseFloat(e.innerText.replace(/[^0-9.]/g, '')) || 0 : 0;
+        }
 
-        // Recalculate Logic
-        // Logic: Price is what user pays. 
-        // Gold (given to user) is ~10% of price (Cost to merchant).
-        // Platform Fee is 10% of Price.
-        // GST is 18% of Platform Fee.
-        
-        const gold = Math.max(30, Math.round(price * 0.10)); // ~10% discount as gold
-        const platformFee = Math.round(price * 0.10);
-        const gst = Math.round(platformFee * 0.18);
-        
-        // Net = Customer Payment - Cost of Gold - Fee - GST
-        const net = price - gold - platformFee - gst;
+        // 1. Get Base Price
+        let price = getNum('.deal-price-edit');
 
-        // Update DOM elements
-        const q = (sel) => card.querySelector(sel);
+        // 2. Get Percentages from the DOM (Editable)
+        let goldPct = getNum('.pct-gold');
+        let feePct = getNum('.pct-fee');
+        let gstPct = getNum('.pct-gst');
+
+        // 3. Calculate absolute values based on percentages
+        const gold = Math.round(price * (goldPct / 100));
+        const fee = Math.round(price * (feePct / 100));
+        const gst = Math.round(fee * (gstPct / 100));
+        const net = price - gold - fee - gst;
+
+        // 4. Update DOM with new values
+        const setTxt = (sel, val, isNeg=false) => {
+            const e = card.querySelector(sel);
+            if(e) e.innerText = (isNeg ? "- " : "") + window.app.fmt(val);
+        }
+
+        setTxt('.val-gold', gold, true);
+        setTxt('.val-fee', fee, true);
+        setTxt('.val-gst', gst, true);
+        setTxt('.val-net', net);
+        setTxt('.val-bill', price);
         
-        if(q('.val-gold')) q('.val-gold').innerText = "- " + window.app.fmt(gold);
-        if(q('.val-fee')) q('.val-fee').innerText = "- " + window.app.fmt(platformFee);
-        if(q('.val-gst')) q('.val-gst').innerText = "- " + window.app.fmt(gst);
-        if(q('.val-net')) q('.val-net').innerText = window.app.fmt(net);
-        
-        // Update bill value in breakdown as well
-        if(q('.val-bill')) q('.val-bill').innerText = window.app.fmt(price);
         // Update tag
-        if(q('.deal-tag')) q('.deal-tag').innerText = `GET ${window.app.fmt(gold)} GOLD`;
+        const tag = card.querySelector('.deal-tag');
+        if(tag) tag.innerText = `GET ${window.app.fmt(gold)} GOLD`;
     },
 
     updateRepeatCard: () => {
@@ -433,6 +445,59 @@ window.app = {
         }, 1000);
     },
 
+    // --- UNIFIED AI FALLBACK HANDLER ---
+    generateWithFallback: async (payloadFactory) => {
+        const textEl = document.getElementById('loader-model-text');
+        
+        for (let i = 0; i < AI_MODELS.length; i++) {
+            const model = AI_MODELS[i];
+            
+            // UI Update
+            if (textEl) {
+                textEl.innerText = `Processing on: ${model.label}`;
+                textEl.classList.remove('switching-anim');
+                textEl.style.color = 'var(--text-sub)';
+            }
+
+            try {
+                const body = payloadFactory(model.id);
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${state.apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                if (response.status === 429 || response.status === 503) {
+                    console.warn(`Model ${model.id} exhausted (Status ${response.status})`);
+                    throw new Error("QuotaExhausted");
+                }
+
+                if (!response.ok) {
+                     const err = await response.text();
+                     console.warn(`Model ${model.id} error:`, err);
+                     throw new Error("ApiError");
+                }
+
+                const data = await response.json();
+                return data; // Success!
+
+            } catch (e) {
+                // If it's the last model, rethrow to be caught by caller (activates manual fallback/cooldown)
+                if (i === AI_MODELS.length - 1) throw e;
+
+                // Visual Switch Indicator
+                if (textEl) {
+                    textEl.innerText = `Switching to: ${AI_MODELS[i+1].label}...`;
+                    textEl.classList.add('switching-anim');
+                    textEl.style.color = 'var(--brand)';
+                }
+                
+                // Delay for visual feedback
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+        }
+    },
+
     // --- IMAGE HANDLING & AI (GEMINI) ---
     handleFile: async (input) => {
         if (input.files && input.files[0]) {
@@ -446,39 +511,31 @@ window.app = {
                 const base64Content = base64Data.split(',')[1]; // Strip header
 
                 try {
-                    // GEMINI API REQUEST (Scanning)
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${state.apiKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{
-                                parts: [
-                                    { text: "Extract list of menu items and prices. Output simple text list." },
-                                    { inline_data: { mime_type: "image/jpeg", data: base64Content } }
-                                ]
-                            }]
-                        })
-                    });
+                    // GENERATE WITH FALLBACK
+                    const result = await window.app.generateWithFallback((modelId) => ({
+                        contents: [{
+                            parts: [
+                                { text: "Extract list of menu items and prices. Output simple text list." },
+                                { inline_data: { mime_type: "image/jpeg", data: base64Content } }
+                            ]
+                        }]
+                    }));
 
-                    // Handle 429
-                    if (response.status === 429) {
-                        window.app.triggerCooldown();
-                        return;
-                    }
-
-                    const result = await response.json();
                     let scannedText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
                     if (!scannedText || scannedText.length < 5) throw new Error("OCR yielded little text");
 
                     document.getElementById('menu-text').value = scannedText.trim();
                     window.app.toggleLoader(false);
 
                 } catch (err) {
-                    console.warn("AI Scan failed. Using Smart Fallback.", err);
-                    const fallbackData = window.app.getFallbackMenu(state.category.id);
-                    document.getElementById('menu-text').value = fallbackData;
-                    setTimeout(() => window.app.toggleLoader(false), 800);
+                    if (err.message === "QuotaExhausted") {
+                        window.app.triggerCooldown();
+                    } else {
+                        console.warn("AI Scan failed. Using Smart Fallback.", err);
+                        const fallbackData = window.app.getFallbackMenu(state.category.id);
+                        document.getElementById('menu-text').value = fallbackData;
+                        setTimeout(() => window.app.toggleLoader(false), 800);
+                    }
                 }
             };
             reader.readAsDataURL(file);
@@ -488,32 +545,20 @@ window.app = {
     // --- AI ANALYSIS (GEMINI) ---
     toggleLoader: (show, isScanning = false) => {
         const loader = document.getElementById('loader');
-        const list = document.getElementById('loader-list');
-        const visual = document.getElementById('loader-visual');
         const quoteBox = document.getElementById('loader-quote');
+        const textEl = document.getElementById('loader-model-text');
         
         if (show) {
             loader.style.display = 'flex';
             
-            // 1. SET VISUAL ANIMATION
-            if (isScanning) {
-                visual.innerHTML = `
-                    <div class="scan-container">
-                        <i class="fa fa-file-invoice scan-doc"></i>
-                        <div class="scan-line"></div>
-                    </div>
-                `;
-            } else {
-                visual.innerHTML = `
-                    <div class="strat-container">
-                        <div class="bar"></div>
-                        <div class="bar"></div>
-                        <div class="bar"></div>
-                    </div>
-                `;
+            // Reset Badge
+            if (textEl) {
+                textEl.innerText = `Connecting to Gemini...`;
+                textEl.classList.remove('switching-anim');
+                textEl.style.color = 'var(--text-sub)';
             }
 
-            // 2. START TIPS ROTATION (MERCHANT TIPS)
+            // START TIPS ROTATION (MERCHANT TIPS)
             const rotateTip = () => {
                 const tip = MERCHANT_TIPS[Math.floor(Math.random() * MERCHANT_TIPS.length)];
                 quoteBox.innerText = tip;
@@ -521,51 +566,9 @@ window.app = {
             rotateTip(); // Initial
             if (state.tipInterval) clearInterval(state.tipInterval);
             state.tipInterval = setInterval(rotateTip, 4000); // Change every 4s
-
-            // 3. GENERATE CHECKLIST
-            const steps = isScanning ? 
-                ["Scanning Image...", "Extracting Text...", "Identifying Prices...", "Formatting Menu..."] :
-                ["Reading Menu Items...", "Benchmarking Prices...", "Identifying Heroes...", "Designing Combos...", "Calculating Gold...", "Finalizing Strategy..."];
-            
-            list.innerHTML = steps.map(s => `
-                <div class="loader-step">
-                    <div class="step-icon"><i class="fa fa-circle"></i></div>
-                    <span>${s}</span>
-                </div>
-            `).join('');
-
-            state.loaderStepIndex = 0;
-            
-            // 4. ANIMATE CHECKLIST
-            if(state.loaderInterval) clearInterval(state.loaderInterval);
-            const stepEls = list.querySelectorAll('.loader-step');
-            
-            // Activate first immediately
-            if(stepEls[0]) {
-                stepEls[0].classList.add('active');
-                stepEls[0].querySelector('.step-icon').innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
-            }
-
-            state.loaderInterval = setInterval(() => {
-                if(state.loaderStepIndex < stepEls.length) {
-                    const current = stepEls[state.loaderStepIndex];
-                    current.classList.remove('active');
-                    current.classList.add('done');
-                    current.querySelector('.step-icon').innerHTML = '<i class="fa fa-check"></i>';
-                    
-                    state.loaderStepIndex++;
-                    
-                    if(state.loaderStepIndex < stepEls.length) {
-                        const next = stepEls[state.loaderStepIndex];
-                        next.classList.add('active');
-                        next.querySelector('.step-icon').innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
-                    }
-                }
-            }, 800);
             
         } else {
             loader.style.display = 'none';
-            clearInterval(state.loaderInterval);
             clearInterval(state.tipInterval);
         }
     },
@@ -576,7 +579,6 @@ window.app = {
 
         window.app.toggleLoader(true);
 
-        // GEMINI PROMPT - OPTIMIZED FOR TOKENS
         const prompt = `Act as strategist. Store: ${state.storeName} (${state.category.label}). AOV: ${state.aov}.
 Menu:
 ${inputMenu}
@@ -596,23 +598,12 @@ Rules:
 4. Output ONLY valid JSON text. No markdown.`;
 
         try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${state.apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    // Use tools for Search Grounding
-                    tools: [{ googleSearch: {} }] 
-                })
-            });
+            // GENERATE WITH FALLBACK
+            const result = await window.app.generateWithFallback((modelId) => ({
+                contents: [{ parts: [{ text: prompt }] }],
+                tools: [{ googleSearch: {} }] 
+            }));
 
-            // Handle 429
-            if (response.status === 429) {
-                window.app.triggerCooldown();
-                return;
-            }
-
-            const result = await response.json();
             const candidate = result?.candidates?.[0];
             let jsonText = candidate?.content?.parts?.[0]?.text;
             
@@ -620,7 +611,6 @@ Rules:
             const groundingChunks = candidate?.groundingMetadata?.groundingChunks || [];
             state.groundingSources = groundingChunks.map(c => c.web).filter(w => w);
 
-            // Clean JSON
             if (jsonText) {
                 jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
             }
@@ -634,68 +624,71 @@ Rules:
             window.app.renderStrategy();
 
         } catch (err) {
-            console.warn("AI failed. Using Smart Parse Fallback:", err);
-            
-            // --- STRICT PARSING FALLBACK ENGINE ---
-            const lines = inputMenu.split('\n');
-            const parsedItems = [];
-            lines.forEach(line => {
-                let cleanLine = line.replace(/[+\-]/g, '').trim();
-                const match = cleanLine.match(/(.+?)[\s\:\.]+(\d+)/); 
-                if (match) {
-                    parsedItems.push({
-                        name: match[1].trim(),
-                        price: parseInt(match[2])
+            if (err.message === "QuotaExhausted") {
+                window.app.triggerCooldown();
+            } else {
+                console.warn("AI failed. Using Smart Parse Fallback:", err);
+                
+                // --- STRICT PARSING FALLBACK ENGINE ---
+                const lines = inputMenu.split('\n');
+                const parsedItems = [];
+                lines.forEach(line => {
+                    let cleanLine = line.replace(/[+\-]/g, '').trim();
+                    const match = cleanLine.match(/(.+?)[\s\:\.]+(\d+)/); 
+                    if (match) {
+                        parsedItems.push({
+                            name: match[1].trim(),
+                            price: parseInt(match[2])
+                        });
+                    }
+                });
+
+                const validItems = parsedItems.length > 0 ? parsedItems : [{name: "Standard Item", price: Number(state.aov)}];
+                const aov = Number(state.aov) || 500;
+
+                const deals = [];
+                const prefixes = ["Mega", "Super", "Saver", "Family", "Duo", "Party", "Trial", "Premium", "Weekend", "Early Bird"];
+                
+                for(let i=0; i<10; i++) {
+                    const item1 = validItems[i % validItems.length];
+                    const item2 = validItems[(i+1) % validItems.length];
+                    let isHighValue = item1.price > (aov * 0.7);
+                    let isCombo = !isHighValue && (i % 3 !== 0); 
+                    
+                    let realVal = isCombo ? (item1.price + item2.price) : item1.price;
+                    // Deal Price = Real Value (Full MRP)
+                    let dealPrice = realVal; 
+                    let rawGold = Math.round(dealPrice * 0.10); // ~10%
+                    let gold = Math.max(30, rawGold);
+                    
+                    deals.push({
+                        title: prefixes[i] + " " + (isCombo ? "Combo" : "Offer"),
+                        items: isCombo ? `${item1.name} + ${item2.name}` : item1.name,
+                        real_value: realVal,
+                        deal_price: dealPrice,
+                        gold: gold,
+                        description: isCombo ? "Best value for money" : "Top selling item"
                     });
                 }
-            });
 
-            const validItems = parsedItems.length > 0 ? parsedItems : [{name: "Standard Item", price: Number(state.aov)}];
-            const aov = Number(state.aov) || 500;
+                const vouchers = [
+                    { threshold: Math.round(aov * 1.5), amount: Math.max(50, Math.round(aov * 0.3)), desc: "Spend More, Get More (Mid)" },
+                    { threshold: Math.round(aov * 2.5), amount: Math.max(100, Math.round(aov * 0.6)), desc: "High Roller Reward" },
+                    { threshold: Math.round(aov * 3.5), amount: Math.max(150, Math.round(aov * 0.8)), desc: "Celebration Bonus" },
+                    { threshold: Math.round(aov * 1.2), amount: Math.max(40, Math.round(aov * 0.15)), desc: "Easy Entry Reward" },
+                    { threshold: Math.round(aov * 5.0), amount: Math.max(250, Math.round(aov * 1.5)), desc: "VIP Whale Reward" }
+                ];
 
-            const deals = [];
-            const prefixes = ["Mega", "Super", "Saver", "Family", "Duo", "Party", "Trial", "Premium", "Weekend", "Early Bird"];
-            
-            for(let i=0; i<10; i++) {
-                const item1 = validItems[i % validItems.length];
-                const item2 = validItems[(i+1) % validItems.length];
-                let isHighValue = item1.price > (aov * 0.7);
-                let isCombo = !isHighValue && (i % 3 !== 0); 
-                
-                let realVal = isCombo ? (item1.price + item2.price) : item1.price;
-                // Deal Price = Real Value (Full MRP)
-                let dealPrice = realVal; 
-                let rawGold = Math.round(dealPrice * 0.10); // ~10%
-                let gold = Math.max(30, rawGold);
-                
-                deals.push({
-                    title: prefixes[i] + " " + (isCombo ? "Combo" : "Offer"),
-                    items: isCombo ? `${item1.name} + ${item2.name}` : item1.name,
-                    real_value: realVal,
-                    deal_price: dealPrice,
-                    gold: gold,
-                    description: isCombo ? "Best value for money" : "Top selling item"
-                });
+                const repeatCard = { 
+                    trigger: "Bill > " + Math.round(aov * 1.5), 
+                    next_visit_min_spend: Math.round(aov * 2), 
+                    next_visit_gold_reward: Math.max(100, Math.round(aov * 0.4)) 
+                };
+
+                state.strategy = { deals, vouchers, repeatCard };
+                state.groundingSources = [];
+                window.app.renderStrategy();
             }
-
-            const vouchers = [
-                { threshold: Math.round(aov * 1.5), amount: Math.max(50, Math.round(aov * 0.3)), desc: "Spend More, Get More (Mid)" },
-                { threshold: Math.round(aov * 2.5), amount: Math.max(100, Math.round(aov * 0.6)), desc: "High Roller Reward" },
-                { threshold: Math.round(aov * 3.5), amount: Math.max(150, Math.round(aov * 0.8)), desc: "Celebration Bonus" },
-                { threshold: Math.round(aov * 1.2), amount: Math.max(40, Math.round(aov * 0.15)), desc: "Easy Entry Reward" },
-                { threshold: Math.round(aov * 5.0), amount: Math.max(250, Math.round(aov * 1.5)), desc: "VIP Whale Reward" }
-            ];
-
-            const repeatCard = { 
-                trigger: "Bill > " + Math.round(aov * 1.5), 
-                next_visit_min_spend: Math.round(aov * 2), 
-                next_visit_gold_reward: Math.max(100, Math.round(aov * 0.4)) 
-            };
-
-            state.strategy = { deals, vouchers, repeatCard };
-            // Clear sources on fallback
-            state.groundingSources = [];
-            window.app.renderStrategy();
         } finally {
             // Keep loader for a sec to show "Done" state
              setTimeout(() => window.app.toggleLoader(false), 500);
@@ -753,6 +746,11 @@ Rules:
             const gstOnFee = Math.round(platformFee * 0.18);
             const net = price - gold - platformFee - gstOnFee;
             
+            // Calculate starting percentages
+            const goldPct = Math.round((gold / price) * 100) || 10;
+            const feePct = 10;
+            const gstPct = 18;
+
             html += `
                 <div class="deal-card deal-card-new stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${idx * 0.05}s;">
                     <!-- HEADER -->
@@ -786,25 +784,32 @@ Rules:
                         </div>
                     </div>
 
-                    <!-- BREAKDOWN -->
+                    <!-- EDITABLE BREAKDOWN (FULL MATH) -->
                     <div class="math-breakdown">
                         <div style="padding: 20px;">
-                            <div style="display:grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 13px; margin-bottom: 15px;">
-                                <div style="color:rgba(255,255,255,0.7);">Customer Pays (Revenue)</div>
-                                <div class="val-bill" style="font-weight:700;">${window.app.fmt(price)}</div>
-                                
-                                <div style="color:rgba(255,255,255,0.7);">Less: User Gets Gold (Cost)</div>
-                                <div class="val-gold" style="font-weight:700; color:#FFB300;">- ${window.app.fmt(gold)}</div>
-                                
-                                <div style="color:rgba(255,255,255,0.7);">Less: Platform Fee (10%)</div>
-                                <div class="val-fee" style="font-weight:700; color:#FF5722;">- ${window.app.fmt(platformFee)}</div>
-                                
-                                <div style="color:rgba(255,255,255,0.7);">Less: GST on Fee (18%)</div>
-                                <div class="val-gst" style="font-weight:700; color:#FF5722;">- ${window.app.fmt(gstOnFee)}</div>
+                            <div class="math-row">
+                                <div class="math-label">Customer Pays</div>
+                                <div class="math-val val-bill">${window.app.fmt(price)}</div>
                             </div>
-                            <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+
+                            <div class="math-row">
+                                <div class="math-label">User Gets Gold (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gold">${goldPct}</span>%)</div>
+                                <div class="math-val val-gold">- ${window.app.fmt(gold)}</div>
+                            </div>
+
+                            <div class="math-row">
+                                <div class="math-label">Platform Fee (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-fee">${feePct}</span>%)</div>
+                                <div class="math-val val-fee">- ${window.app.fmt(platformFee)}</div>
+                            </div>
+
+                            <div class="math-row">
+                                <div class="math-label">GST on Fee (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gst">${gstPct}</span>%)</div>
+                                <div class="math-val val-gst">- ${window.app.fmt(gstOnFee)}</div>
+                            </div>
+
+                            <div style="padding-top: 12px; display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
                                 <span style="font-size: 11px; color: #00E676; font-weight: 800; text-transform: uppercase;">Net Merchant Earning</span>
-                                <span class="val-net" style="font-size: 18px; font-weight: 800; color: #00E676;">${window.app.fmt(net)}</span>
+                                <span class="val-net" style="font-weight: 800;">${window.app.fmt(net)}</span>
                             </div>
                         </div>
                     </div>
