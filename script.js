@@ -22,9 +22,9 @@ const MERCHANT_TIPS = [
 ];
 
 const AI_MODELS = [
-    { id: 'gemini-3-pro-preview', label: 'GEMINI 3 PRO', tier: 'High Intelligence' },
-    { id: 'gemini-2.5-flash', label: 'GEMINI 2.5 FLASH', tier: 'High Speed' },
-    { id: 'gemini-1.5-flash', label: 'GEMINI 1.5 FLASH', tier: 'Standard' }
+    { id: 'gemini-3-pro-preview', label: 'Gemini 3 Pro', tier: 'High Intelligence' },
+    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', tier: 'High Speed' },
+    { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', tier: 'Standard' }
 ];
 
 // --- APP STATE ---
@@ -464,15 +464,15 @@ window.app = {
     // --- UNIFIED AI FALLBACK HANDLER ---
     generateWithFallback: async (payloadFactory) => {
         const textEl = document.getElementById('loader-model-text');
+        const pillEl = document.getElementById('model-pill');
         
         for (let i = 0; i < AI_MODELS.length; i++) {
             const model = AI_MODELS[i];
             
-            // UI Update
+            // UI Update: Running Model
             if (textEl) {
-                textEl.innerText = `Processing on: ${model.label}`;
-                textEl.classList.remove('switching-anim');
-                textEl.style.color = 'var(--text-sub)';
+                textEl.innerText = model.label;
+                if(pillEl) pillEl.classList.remove('switching-anim');
             }
 
             try {
@@ -503,9 +503,8 @@ window.app = {
 
                 // Visual Switch Indicator
                 if (textEl) {
-                    textEl.innerText = `Switching to: ${AI_MODELS[i+1].label}...`;
-                    textEl.classList.add('switching-anim');
-                    textEl.style.color = 'var(--brand)';
+                    textEl.innerText = `Switching to ${AI_MODELS[i+1].label}...`;
+                    if(pillEl) pillEl.classList.add('switching-anim');
                 }
                 
                 // Delay for visual feedback
@@ -563,15 +562,17 @@ window.app = {
         const loader = document.getElementById('loader');
         const quoteBox = document.getElementById('loader-quote');
         const textEl = document.getElementById('loader-model-text');
+        const storeNameEl = document.getElementById('loader-store-name');
         
         if (show) {
             loader.style.display = 'flex';
             
+            // Personalize
+            if(storeNameEl) storeNameEl.innerText = state.storeName || "Your Business";
+
             // Reset Badge
             if (textEl) {
-                textEl.innerText = `Connecting to Gemini...`;
-                textEl.classList.remove('switching-anim');
-                textEl.style.color = 'var(--text-sub)';
+                textEl.innerText = `Gemini 3 Pro`; // Default start
             }
 
             // START TIPS ROTATION (MERCHANT TIPS)
@@ -661,7 +662,6 @@ Output JSON:
             } else {
                 console.warn("AI failed. Using Smart Parse Fallback:", err);
                 // Simple Fallback logic...
-                // (Existing fallback logic simplified for brevity, assume similar structure as before but minimal)
                  const deals = [];
                  for(let i=0; i<10; i++) deals.push({title: "Offer "+(i+1), items: "Best Items", real_value: Number(state.aov), deal_price: Number(state.aov), gold: Math.round(state.aov*0.1)});
                  const vouchers = [{threshold: 1000, amount: 100, desc: "Visit Bonus"}];

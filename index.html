@@ -243,8 +243,16 @@
         .cat-item.selected { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
 
         /* PREMIUM LOADER (SAMSUNG ONE UI STYLE) */
-        .loader-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-body); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; animation: fadeIn 0.3s ease; }
+        .loader-overlay { 
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%); 
+            z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            animation: fadeIn 0.3s ease; 
+        }
         
+        .loader-header-text { font-size: 14px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; text-align: center; }
+        .loader-store-name { font-size: 24px; font-weight: 800; color: #fff; margin-bottom: 30px; text-align: center; background: linear-gradient(to right, #fff, #aaa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
         /* BRAND PULSE ANIMATION */
         .loader-orbit-container { position: relative; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; margin-bottom: 40px; }
         .loader-logo { font-size: 50px; color: var(--brand); z-index: 2; animation: logoBreath 2s infinite ease-in-out; }
@@ -257,17 +265,28 @@
         @keyframes logoBreath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); filter: drop-shadow(0 0 10px var(--brand)); } }
 
         /* QUOTES & TIPS */
-        .quote-container { margin-top: 20px; text-align: center; max-width: 85%; min-height: 80px; }
-        .quote-text { font-size: 16px; font-weight: 600; color: var(--text-main); line-height: 1.5; animation: slideUpFade 4s infinite; }
-        .tip-header { font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+        .quote-container { margin-top: 10px; text-align: center; max-width: 85%; min-height: 80px; opacity: 0.8; }
+        .quote-text { font-size: 14px; font-weight: 500; color: var(--text-main); line-height: 1.5; animation: slideUpFade 4s infinite; }
         @keyframes slideUpFade { 0% { opacity: 0; transform: translateY(10px); } 10% { opacity: 1; transform: translateY(0); } 90% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
 
-        /* MODEL BADGE (EDUCATION) */
-        .model-badge-container { position: absolute; bottom: calc(50px + var(--safe-bottom)); display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); padding: 8px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
-        .model-icon { font-size: 12px; color: var(--brand); }
-        .model-text { font-size: 10px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; }
-        .switching-anim { animation: pulseText 1s infinite; color: var(--brand); }
-        @keyframes pulseText { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        /* ACTIVE MODEL PILL (PROFESSIONAL UI) */
+        .model-pill {
+            position: absolute; bottom: calc(40px + var(--safe-bottom));
+            background: rgba(20, 20, 20, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 18px; border-radius: 50px;
+            display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 2002;
+            animation: slideUp 0.5s ease-out;
+        }
+        .model-dot { width: 8px; height: 8px; background: #00E676; border-radius: 50%; box-shadow: 0 0 8px #00E676; animation: pulseDot 1.5s infinite; }
+        .model-info { display: flex; flex-direction: column; }
+        .model-label { font-size: 9px; color: #888; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 2px; }
+        .model-name { font-size: 13px; color: #fff; font-weight: 700; letter-spacing: 0.3px; }
+        .switching-anim .model-name { color: var(--brand); }
+        .switching-anim .model-dot { background: var(--brand); box-shadow: 0 0 8px var(--brand); }
+        
+        @keyframes pulseDot { 0% { opacity: 0.5; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } 100% { opacity: 0.5; transform: scale(0.8); } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
         .loader-checklist { display: none; } /* Hidden for minimal look */
         
@@ -335,15 +354,21 @@
                     </div>
                 </div>
                 
+                <!-- Personalized Header -->
+                <div class="loader-header-text">Designing Strategy For</div>
+                <div class="loader-store-name" id="loader-store-name">Your Business</div>
+
                 <div class="quote-container">
-                    <div class="tip-header">GENERATING STRATEGY...</div>
                     <div id="loader-quote" class="quote-text"></div>
                 </div>
                 
-                <!-- MODEL BADGE -->
-                <div class="model-badge-container">
-                    <i class="fa fa-microchip model-icon"></i>
-                    <div id="loader-model-text" class="model-text">Processing on: Gemini 3 Pro</div>
+                <!-- MODEL PILL -->
+                <div class="model-pill" id="model-pill">
+                    <div class="model-dot" id="model-status-dot"></div>
+                    <div class="model-info">
+                        <span class="model-label">Running Model</span>
+                        <span class="model-name" id="loader-model-text">Gemini 3 Pro</span>
+                    </div>
                 </div>
                 
                 <div class="loader-checklist" id="loader-list"></div> <!-- Hidden logically but kept for script ref -->
