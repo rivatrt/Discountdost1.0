@@ -1,1 +1,3 @@
-// This file is deprecated. The application has been migrated to vanilla JavaScript in script.js.
+// THIS FILE IS DEPRECATED AND UNUSED.
+// The application runs on vanilla JavaScript (script.js).
+// You can safely delete this file.
