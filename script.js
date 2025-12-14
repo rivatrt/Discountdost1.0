@@ -21,6 +21,16 @@ const MERCHANT_TIPS = [
     "Personalized rewards increase redemption rates by 6x."
 ];
 
+const LOADING_MSGS = [
+    "> scanning_menu_items...",
+    "> calculating_churn_risk...",
+    "> identifying_whales...",
+    "> benchmarking_competitors...",
+    "> optimizing_price_elasticity...",
+    "> generating_gold_hooks...",
+    "> applying_psychology..."
+];
+
 const AI_MODELS = [
     { id: 'gemini-3-pro-preview', label: 'Gemini 3 Pro', tier: 'High Intelligence' },
     { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', tier: 'High Speed' },
@@ -40,7 +50,7 @@ const state = {
     strategy: null,
     groundingSources: [],
     loaderInterval: null,
-    tipInterval: null,
+    terminalInterval: null,
     loaderStepIndex: 0,
     manualItems: [{name:"", price:""}, {name:"", price:""}, {name:"", price:""}],
     installPrompt: null,
@@ -452,7 +462,6 @@ window.app = {
     // --- UNIFIED AI FALLBACK HANDLER ---
     generateWithFallback: async (payloadFactory) => {
         const textEl = document.getElementById('loader-model-text');
-        const pillEl = document.getElementById('model-pill');
         
         for (let i = 0; i < AI_MODELS.length; i++) {
             const model = AI_MODELS[i];
@@ -460,7 +469,6 @@ window.app = {
             // UI Update: Running Model
             if (textEl) {
                 textEl.innerText = model.label;
-                if(pillEl) pillEl.classList.remove('switching-anim');
             }
 
             try {
@@ -492,7 +500,6 @@ window.app = {
                 // Visual Switch Indicator
                 if (textEl) {
                     textEl.innerText = `Switching to ${AI_MODELS[i+1].label}...`;
-                    if(pillEl) pillEl.classList.add('switching-anim');
                 }
                 
                 // Delay for visual feedback
@@ -551,6 +558,7 @@ window.app = {
         const quoteBox = document.getElementById('loader-quote');
         const textEl = document.getElementById('loader-model-text');
         const storeNameEl = document.getElementById('loader-store-name');
+        const terminal = document.getElementById('loader-terminal');
         
         if (show) {
             loader.style.display = 'flex';
@@ -560,7 +568,7 @@ window.app = {
 
             // Reset Badge
             if (textEl) {
-                textEl.innerText = `Gemini 3 Pro`; // Default start
+                textEl.innerText = `GEMINI 3 PRO`; // Default start
             }
 
             // START TIPS ROTATION (MERCHANT TIPS)
@@ -572,9 +580,29 @@ window.app = {
             if (state.tipInterval) clearInterval(state.tipInterval);
             state.tipInterval = setInterval(rotateTip, 4000); // Change every 4s
             
+            // START TERMINAL TEXT ANIMATION
+            let msgIdx = 0;
+            if (terminal) terminal.innerHTML = "";
+            if (state.terminalInterval) clearInterval(state.terminalInterval);
+            
+            const addLine = () => {
+                const msg = LOADING_MSGS[msgIdx % LOADING_MSGS.length];
+                const line = document.createElement('span');
+                line.className = 'term-line';
+                line.innerText = msg;
+                if(terminal) {
+                    terminal.innerHTML = ""; // Keep it clean, single line or append
+                    terminal.appendChild(line);
+                }
+                msgIdx++;
+            }
+            addLine();
+            state.terminalInterval = setInterval(addLine, 1500);
+
         } else {
             loader.style.display = 'none';
             clearInterval(state.tipInterval);
+            clearInterval(state.terminalInterval);
         }
     },
 

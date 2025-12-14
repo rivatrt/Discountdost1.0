@@ -13,10 +13,10 @@
     <!-- FAVICON: Professional Yellow D on Black -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjkwIiBmaWxsPSIjMDAwMDAwIi8+PHBhdGggZD0iTTE2NSAxMTAgSCAyNjUgQyAzNTUgMTEwIDQxNSAxNzUgNDE1IDI1NiBDIDQxNSAzMzcgMzU1IDQwMiAyNjUgNDAyIEggMTY1IFYgMTEwIFogTSAyMjUgMTcwIFYgMzQyIEggMjY1IEMgMzE1IDM0MiAzNTUgMzA1IDM1NSAyNTYgQyAzNTUgMjA3IDMxNSAxNzAgMjY1IDE3MCBVIDIyNSBaIiBmaWxsPSIjRkZDMTA3Ii8+PC9zdmc+">
     
-    <!-- MANIFEST: Updated to use the correct Logo in Install Prompt -->
+    <!-- MANIFEST -->
     <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiRGlzY291bnQgRG9zdCIsInNob3J0X25hbWUiOiJEaXNjb3VudCBEb3N0Iiwic3RhcnRfdXJsIjoiLi8iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjMDAwMDAwIiwidGhlbWVfY29sb3IiOiIjMDAwMDAwIiwidHlwZSI6ImltYWdlL3BuZyIsImljb25zIjpbeyJzcmMiOiJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhabFpYZENiM2c5SWpBd0lEQWdOVEV5TlRFeUlpPjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiByeD0iOTAiIGZpbGw9IiMwMDAwMDAiLz48cGF0aCBkPSJNMTY1IDExMCBIIDI2NSBDIDM1NSAxMTAgNDE1IDE3NSA0MTUgMjU2IEMgNDE1IDMzNyAzNTUgNDAyIDI2NSA0MDIgSCAxNjUgViAxMTAgWiBNIDIyNSAxNzAgViAzNDIgSCAyNjUgQyAzMTUgMzQyIDM1NSAzMDUgMzU1IDI1NiBDIDM1NSAyMDcgMzE1IDE3MCAyNjUgMTcwIEggMjI1IFoiIGZpbGw9IiNGRkMxMDciLz48L3N2Zz4iLCJzaXplcyI6IjUxMng1MTIiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCJ9XX0=">
     
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -123,7 +123,7 @@
         .back-btn { opacity: 0; pointer-events: none; transform: translateX(-10px); transition: 0.3s; }
         .back-btn.visible { opacity: 1; pointer-events: auto; transform: translateX(0); }
         
-        /* INSTALL BUTTON */
+        /* INSTALL BUTTON - FIXED VISIBILITY */
         .install-pill { 
             background: var(--brand-gradient); 
             color: white; 
@@ -132,13 +132,14 @@
             font-size: 11px; 
             font-weight: 800; 
             height: 40px; 
-            display: none; /* Controlled by JS */
+            display: none; /* Controlled by JS based on browser event */
             align-items: center; 
             gap: 8px; 
             box-shadow: 0 4px 12px rgba(255, 87, 34, 0.4); 
             cursor: pointer; 
             transition: transform 0.2s ease;
             white-space: nowrap;
+            z-index: 505; /* High z-index to ensure visibility */
         }
         .install-pill:active { transform: scale(0.95); }
         .install-pill i { font-size: 12px; }
@@ -250,7 +251,7 @@
         .cat-item { background: var(--bg-input); padding: 18px 8px; border-radius: 20px; text-align: center; border: 2px solid transparent; transition: 0.2s; color: var(--text-main); cursor: pointer; }
         .cat-item.selected { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
 
-        /* MINIMAL PROFESSIONAL LOADER */
+        /* --- UPDATED MINIMAL PROFESSIONAL LOADER --- */
         .loader-overlay { 
             position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
             background: #000000; /* Pure Black */
@@ -258,43 +259,70 @@
             animation: fadeIn 0.4s ease; 
         }
         
-        .loader-orbit-container { position: relative; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; margin-bottom: 50px; }
-        .loader-logo { z-index: 2; animation: breathing 3s infinite ease-in-out; }
-        .loader-logo svg { width: 64px; height: 64px; filter: drop-shadow(0 0 15px rgba(255, 87, 34, 0.5)); }
-        
-        /* Subtle glow instead of ripples */
-        .loader-glow {
-            position: absolute; width: 100%; height: 100%;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,87,34,0.2) 0%, transparent 70%);
-            animation: pulseGlow 2s infinite ease-in-out;
+        .loader-content {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 100%;
         }
 
-        .loader-header-text { font-size: 10px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 12px; text-align: center; opacity: 0.7; }
-        .loader-store-name { font-size: 20px; font-weight: 500; color: #fff; margin-bottom: 0px; text-align: center; letter-spacing: 0.5px; font-family: 'Manrope', sans-serif; }
-
-        @keyframes breathing { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(255, 87, 34, 0.4)); } 50% { transform: scale(1.05); filter: drop-shadow(0 0 25px rgba(255, 87, 34, 0.7)); } }
-        @keyframes pulseGlow { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.5); } }
-
-        .quote-container { margin-top: 40px; text-align: center; max-width: 80%; min-height: 60px; opacity: 0.6; }
-        .quote-text { font-size: 13px; font-weight: 500; color: var(--text-sub); line-height: 1.6; }
-
-        /* MINIMAL MODEL PILL */
-        .model-pill {
-            position: absolute; bottom: calc(40px + var(--safe-bottom));
-            background: rgba(255, 255, 255, 0.05); 
-            border: 1px solid rgba(255, 255, 255, 0.08); 
-            padding: 6px 14px; border-radius: 50px;
-            display: flex; align-items: center; gap: 8px;
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        /* 1. Logo with Breathing Effect */
+        .loader-logo-box {
+            position: relative; width: 80px; height: 80px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 40px;
         }
-        .model-dot { width: 6px; height: 6px; background: #00E676; border-radius: 50%; box-shadow: 0 0 6px #00E676; }
-        .model-name { font-size: 11px; color: rgba(255,255,255,0.7); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
-        .switching-anim .model-name { color: var(--brand); }
-        .switching-anim .model-dot { background: var(--brand); box-shadow: 0 0 6px var(--brand); }
+        .loader-logo-box svg {
+            width: 60px; height: 60px;
+            z-index: 2;
+            animation: breathLogo 3s infinite ease-in-out;
+            filter: drop-shadow(0 0 20px rgba(255, 193, 7, 0.4));
+        }
+        @keyframes breathLogo {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(255, 193, 7, 0.3)); }
+            50% { transform: scale(1.08); filter: drop-shadow(0 0 30px rgba(255, 193, 7, 0.6)); }
+        }
 
-        .loader-checklist { display: none; }
+        /* 2. Personalized Text */
+        .loader-text-group { text-align: center; margin-bottom: 30px; }
+        .loader-label { 
+            font-size: 10px; font-weight: 700; color: var(--text-sub); 
+            text-transform: uppercase; letter-spacing: 3px; margin-bottom: 8px; opacity: 0.7; 
+        }
+        .loader-brand { 
+            font-size: 22px; font-weight: 700; color: #fff; 
+            letter-spacing: 0.5px; font-family: 'Manrope', sans-serif; 
+        }
+
+        /* 3. Tech/Data Crunching Graphic */
+        .model-status-box {
+            background: rgba(20, 20, 20, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 12px 20px;
+            display: flex; flex-direction: column; gap: 8px;
+            width: 280px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .ms-row { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; margin-bottom: 4px; }
+        .ms-dot { width: 6px; height: 6px; background: #00E676; border-radius: 50%; box-shadow: 0 0 8px #00E676; animation: blinkStatus 1.5s infinite; }
+        @keyframes blinkStatus { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         
+        .ms-model { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--brand); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .ms-terminal {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: rgba(255,255,255,0.5);
+            line-height: 1.6;
+            height: 35px;
+            overflow: hidden;
+            text-align: left;
+        }
+        .term-line { display: block; white-space: nowrap; overflow: hidden; animation: typeLine 0.5s steps(20, end); }
+        
+        .quote-container { margin-top: 30px; text-align: center; max-width: 80%; opacity: 0.5; }
+        .quote-text { font-size: 12px; color: var(--text-sub); font-style: italic; }
+
         /* API KEY & COOLDOWN */
         .api-key-input { margin: 15px 0; font-size: 14px; text-align: center; }
         .hf-badge { display: inline-block; padding: 4px 8px; background: #4285F4; color: #fff; border-radius: 4px; font-weight: 800; font-size: 10px; margin-bottom: 10px; }
@@ -350,32 +378,40 @@
         <main id="scroll-container" onscroll="app.handleScroll()">
             <!-- LOADER -->
             <div id="loader" class="loader-overlay" style="display: none;">
-                <div class="loader-orbit-container">
-                    <div class="loader-glow"></div>
-                    <div class="loader-logo">
-                         <!-- LOADER D LOGO -->
-                        <svg viewBox="0 0 512 512">
+                <div class="loader-content">
+                    <!-- Logo Box -->
+                    <div class="loader-logo-box">
+                         <svg viewBox="0 0 512 512">
                              <rect width="512" height="512" rx="90" fill="#000000"/>
                              <path d="M165 110 H 265 C 355 110 415 175 415 256 C 415 337 355 402 265 402 H 165 V 110 Z M 225 170 V 342 H 265 C 315 342 355 305 355 256 C 355 207 315 170 265 170 H 225 Z" fill="#FFC107"/>
                         </svg>
                     </div>
-                </div>
-                
-                <!-- Personalized Header -->
-                <div class="loader-header-text">DESIGNING STRATEGY FOR</div>
-                <div class="loader-store-name" id="loader-store-name">Your Business</div>
+                    
+                    <!-- Personalized Header -->
+                    <div class="loader-text-group">
+                        <div class="loader-label">DESIGNING STRATEGY FOR</div>
+                        <div class="loader-brand" id="loader-store-name">Your Business</div>
+                    </div>
 
-                <div class="quote-container">
-                    <div id="loader-quote" class="quote-text"></div>
+                    <!-- Tech Graphic / Data Crunching -->
+                    <div class="model-status-box">
+                        <div class="ms-row">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span class="ms-dot"></span>
+                                <span style="font-size:10px; color:#fff; opacity:0.8;">AI MODEL</span>
+                            </div>
+                            <span class="ms-model" id="loader-model-text">GEMINI 3 PRO</span>
+                        </div>
+                        <div class="ms-terminal" id="loader-terminal">
+                            <!-- JS injects lines here -->
+                            <span class="term-line">> initializing_neural_net...</span>
+                        </div>
+                    </div>
+
+                    <div class="quote-container">
+                        <div id="loader-quote" class="quote-text"></div>
+                    </div>
                 </div>
-                
-                <!-- MODEL PILL -->
-                <div class="model-pill" id="model-pill">
-                    <div class="model-dot" id="model-status-dot"></div>
-                    <span class="model-name" id="loader-model-text">GEMINI 3 PRO</span>
-                </div>
-                
-                <div class="loader-checklist" id="loader-list"></div> <!-- Hidden logically but kept for script ref -->
             </div>
 
             <!-- COOLDOWN -->
