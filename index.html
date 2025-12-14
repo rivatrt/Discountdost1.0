@@ -109,7 +109,8 @@
             font-size: 11px; font-weight: 800; 
             text-transform: uppercase; letter-spacing: 0.5px; 
             margin-bottom: 8px; border: 1px solid var(--border-color); 
-            transition: all 0.3s var(--ease-oneui); opacity: 1; transform: translateY(0); 
+            transition: all 0.3s var(--ease-oneui); opacity: 1; transform: translateY(0);
+            cursor: pointer; /* Clickable for Secret Menu */
         }
         .logo-svg { width: 24px; height: 24px; border-radius: 6px; }
 
@@ -125,7 +126,7 @@
         .back-btn { opacity: 0; pointer-events: none; transform: translateX(-10px); transition: 0.3s; }
         .back-btn.visible { opacity: 1; pointer-events: auto; transform: translateX(0); }
         
-        /* INSTALL BUTTON - FIXED VISIBILITY */
+        /* INSTALL BUTTON - HIDDEN BY DEFAULT */
         .install-pill { 
             background: var(--brand-gradient); 
             color: white; 
@@ -134,7 +135,7 @@
             font-size: 11px; 
             font-weight: 800; 
             height: 40px; 
-            display: flex; /* Visible by default via CSS */
+            display: none; /* Hidden by default */
             align-items: center; 
             gap: 8px; 
             box-shadow: 0 4px 12px rgba(255, 87, 34, 0.4); 
@@ -364,7 +365,7 @@
                 </div>
             </div>
             <div class="header-content-wrapper" id="header-content">
-                <div class="brand-pill">
+                <div class="brand-pill" onclick="app.openKeyManager()">
                     <!-- NEW PROFESSIONAL D LOGO -->
                     <svg class="logo-svg" viewBox="0 0 512 512">
                         <rect width="512" height="512" rx="90" fill="#000000"/>
@@ -546,6 +547,19 @@
                 <input type="password" id="gemini-key-input" class="cat-trigger api-key-input" placeholder="AIzaSy...">
                 <button class="btn btn-brand ripple-effect" onclick="window.app.saveApiKey()">Start App</button>
                 <p style="font-size:11px; color:var(--text-sub); margin-top:15px;">Key is stored locally on your device.</p>
+            </div>
+        </div>
+
+        <!-- NEW KEY MANAGER MODAL -->
+        <div class="modal-overlay" id="key-manager-modal" style="display: none;" onclick="document.getElementById('key-manager-modal').style.display='none'">
+            <div class="modal-box" onclick="event.stopPropagation()">
+                <div class="hf-badge" style="background:#FFC107; color:#000;">KEY MANAGER</div>
+                <h3 style="margin:0 0 10px 0; font-weight: 800;">Manage API Keys</h3>
+                <p style="font-size:13px; color:var(--text-sub); margin-bottom:20px;">Add up to 5 keys. We will rotate them to keep you on the Best Model.</p>
+                <div id="key-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
+                    <!-- JS Injects Inputs Here -->
+                </div>
+                <button class="btn btn-brand ripple-effect" onclick="window.app.saveKeys()">Save Keys</button>
             </div>
         </div>
 

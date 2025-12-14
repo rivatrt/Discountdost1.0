@@ -46,7 +46,7 @@ const state = {
     aov: "",
     discount: "",
     isDark: true,
-    apiKey: null,
+    apiKeys: [], // Now array
     strategy: null,
     groundingSources: [],
     loaderInterval: null,
@@ -57,9 +57,16 @@ const state = {
     cooldownTimer: null
 };
 
-// Try to load API Key safely (GEMINI KEY)
+// Load Keys
 try {
-    state.apiKey = localStorage.getItem('discount_dost_gemini_key');
+    const stored = localStorage.getItem('discount_dost_gemini_keys');
+    if (stored) {
+        state.apiKeys = JSON.parse(stored);
+    } else {
+        // Legacy fallback
+        const single = localStorage.getItem('discount_dost_gemini_key');
+        if (single) state.apiKeys = [single];
+    }
 } catch (e) {
     console.warn("LocalStorage access denied");
 }
@@ -72,12 +79,6 @@ window.app = {
             window.app.renderCategoryGrid();
             window.app.renderManualInputs();
             
-            // Check Standalone Mode (Hide Install Button)
-            if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-                const btn = document.getElementById('install-btn');
-                if (btn) btn.style.display = 'none';
-            }
-            
             // Handle Native Back Button / Swipe
             window.history.replaceState({page: 1}, "", "");
             window.addEventListener('popstate', (event) => {
@@ -86,7 +87,7 @@ window.app = {
                 }
             });
 
-            if (state.apiKey) {
+            if (state.apiKeys.length > 0) {
                 const modal = document.getElementById('api-key-modal');
                 if(modal) modal.style.display = 'none';
             }
@@ -112,7 +113,9 @@ window.app = {
             window.addEventListener('beforeinstallprompt', (e) => {
                 e.preventDefault();
                 state.installPrompt = e;
-                // Button is visible by default (CSS), but we can animate it or highlight it here if needed
+                // SHOW INSTALL BUTTON ON ANDROID/DESKTOP WHEN PROMPT IS READY
+                const btn = document.getElementById('install-btn');
+                if (btn) btn.style.display = 'flex';
             });
 
             window.addEventListener('appinstalled', () => {
@@ -121,13 +124,21 @@ window.app = {
                 if (btn) btn.style.display = 'none';
             });
 
+            // IOS DETECT - Show button manually because no beforeinstallprompt event
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+            if (isIOS && !isStandalone) {
+                const btn = document.getElementById('install-btn');
+                if (btn) btn.style.display = 'flex';
+            }
+
         } catch (err) {
             console.error("Init error:", err);
         }
     },
 
     installPWA: async () => {
-        // 1. Try Native Android Prompt (if available)
+        // 1. Try Native Android Prompt (Prioritized)
         if (state.installPrompt) {
             state.installPrompt.prompt();
             const { outcome } = await state.installPrompt.userChoice;
@@ -139,54 +150,74 @@ window.app = {
             return;
         }
 
-        // 2. Fallback: Manual Instructions (iOS or dismissed Android)
-        const modal = document.getElementById('install-help-modal');
-        const iconDiv = modal.querySelector('.modal-icon');
-        const title = modal.querySelector('h3');
-        const desc = modal.querySelector('p');
-
-        // Robust iOS Detection (including iPad on desktop mode)
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                      (navigator.userAgent.includes("Mac") && "ontouchend" in document);
-
-        if (isIOS) {
-            iconDiv.innerHTML = '<i class="fab fa-apple"></i>';
-            title.innerText = "Install on iOS";
-            desc.innerHTML = `1. Tap the <b>Share</b> button <i class="fa fa-share-square"></i><br>2. Scroll down & select <br><b>"Add to Home Screen"</b> <i class="fa fa-plus-square"></i>`;
-        } else {
-            // Android / Desktop / Other
-            iconDiv.innerHTML = '<i class="fab fa-android"></i>';
-            title.innerText = "Install App";
-            desc.innerHTML = `1. Tap the browser menu <i class="fa fa-ellipsis-v"></i><br>2. Select <b>"Install App"</b> or <br><b>"Add to Home Screen"</b>`;
-        }
+        // 2. iOS Fallback Instruction
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
         
-        modal.style.display = 'flex';
+        if (isIOS) {
+             const modal = document.getElementById('install-help-modal');
+             const iconDiv = modal.querySelector('.modal-icon');
+             const title = modal.querySelector('h3');
+             const desc = modal.querySelector('p');
+             
+             iconDiv.innerHTML = '<i class="fab fa-apple"></i>';
+             title.innerText = "Install on iOS";
+             desc.innerHTML = `1. Tap the <b>Share</b> button <i class="fa fa-share-square"></i><br>2. Scroll down & select <br><b>"Add to Home Screen"</b> <i class="fa fa-plus-square"></i>`;
+             modal.style.display = 'flex';
+        }
     },
     
     closeInstallModal: () => {
         document.getElementById('install-help-modal').style.display = 'none';
     },
 
-    saveApiKey: () => {
-        try {
-            const input = document.getElementById('gemini-key-input');
-            if (!input) return;
-            
-            const key = input.value.trim();
-            if (key.length > 5) {
-                try {
-                    localStorage.setItem('discount_dost_gemini_key', key);
-                } catch (e) {
-                    console.warn("Could not save to localStorage");
-                }
-                state.apiKey = key;
-                document.getElementById('api-key-modal').style.display = 'none';
-            } else {
-                alert("Please enter a valid API key");
+    // --- KEY MANAGER ---
+    openKeyManager: () => {
+        const modal = document.getElementById('key-manager-modal');
+        const list = document.getElementById('key-list');
+        list.innerHTML = '';
+        
+        // Render 5 inputs
+        for (let i = 0; i < 5; i++) {
+            const val = state.apiKeys[i] || '';
+            list.innerHTML += `
+                <input type="text" id="key-slot-${i}" class="cat-trigger" 
+                    placeholder="API Key ${i+1}" value="${val}" 
+                    style="padding: 12px; font-size: 14px;">
+            `;
+        }
+        modal.style.display = 'flex';
+    },
+
+    saveKeys: () => {
+        const newKeys = [];
+        for (let i = 0; i < 5; i++) {
+            const el = document.getElementById(`key-slot-${i}`);
+            if (el && el.value.trim().length > 10) {
+                newKeys.push(el.value.trim());
             }
-        } catch (e) {
-            console.error(e);
-            alert("Error saving key. See console.");
+        }
+        
+        if (newKeys.length > 0) {
+            state.apiKeys = newKeys;
+            localStorage.setItem('discount_dost_gemini_keys', JSON.stringify(newKeys));
+            document.getElementById('key-manager-modal').style.display = 'none';
+            alert(`Saved ${newKeys.length} keys.`);
+        } else {
+            alert("Please enter at least one valid key.");
+        }
+    },
+
+    saveApiKey: () => {
+        // Legacy single key save (redirects to array logic)
+        const input = document.getElementById('gemini-key-input');
+        if (!input) return;
+        const key = input.value.trim();
+        if (key.length > 5) {
+            state.apiKeys = [key];
+            localStorage.setItem('discount_dost_gemini_keys', JSON.stringify(state.apiKeys));
+            document.getElementById('api-key-modal').style.display = 'none';
+        } else {
+            alert("Please enter a valid API key");
         }
     },
 
@@ -288,27 +319,21 @@ window.app = {
         const card = el.closest('.deal-card');
         if (!card) return;
 
-        // helper to get number
         const getNum = (sel) => {
             const e = card.querySelector(sel);
             return e ? parseFloat(e.innerText.replace(/[^0-9.]/g, '')) || 0 : 0;
         }
 
-        // 1. Get Base Price (Customer Pays)
         let price = getNum('.deal-price-edit');
-
-        // 2. Get Percentages
         let goldPct = getNum('.pct-gold');
         let feePct = getNum('.pct-fee');
-        let gstPct = getNum('.pct-gst'); // usually 18
+        let gstPct = getNum('.pct-gst'); 
 
-        // 3. Calculate absolute values based on percentage
         const gold = Math.round(price * (goldPct / 100));
         const fee = Math.round(price * (feePct / 100));
         const gst = Math.round(fee * (gstPct / 100));
         const net = price - gold - fee - gst;
 
-        // 4. Update DOM elements
         const setTxt = (sel, val, isNeg=false) => {
             const e = card.querySelector(sel);
             if(e) e.innerText = (isNeg ? "- " : "") + window.app.fmt(val);
@@ -318,9 +343,8 @@ window.app = {
         setTxt('.val-fee', fee, true);
         setTxt('.val-gst', gst, true);
         setTxt('.val-net', net);
-        setTxt('.val-bill', price); // Ensure inner breakdown matches outer price
+        setTxt('.val-bill', price);
         
-        // Update tag
         const tag = card.querySelector('.deal-tag');
         if(tag) tag.innerText = `GET ${window.app.fmt(gold)} GOLD`;
     },
@@ -328,11 +352,7 @@ window.app = {
     updateRepeatCard: () => {
         const wrapper = document.querySelector('.repeat-card-wrapper');
         if (!wrapper) return;
-        
-        // Get Inputs
         const getGold = parseInt(wrapper.querySelector('.inp-rc-gold').innerText.replace(/[^0-9]/g,'')) || 0;
-        
-        // Update Visual Front
         wrapper.querySelector('.gold-text').innerText = `${window.app.fmt(getGold)} Gold`;
     },
 
@@ -494,53 +514,66 @@ window.app = {
         }, 1000);
     },
 
-    // --- UNIFIED AI FALLBACK HANDLER ---
+    // --- UNIFIED AI FALLBACK HANDLER (MULTI-KEY ROTATION) ---
     generateWithFallback: async (payloadFactory) => {
         const textEl = document.getElementById('loader-model-text');
         
-        for (let i = 0; i < AI_MODELS.length; i++) {
-            const model = AI_MODELS[i];
+        // Ensure we have at least one key to try (or legacy)
+        const keysToTry = state.apiKeys.length > 0 ? state.apiKeys : [];
+        if (keysToTry.length === 0) throw new Error("No API Keys");
+
+        // Loop Models (Best to Worst)
+        for (let m = 0; m < AI_MODELS.length; m++) {
+            const model = AI_MODELS[m];
             
-            // UI Update: Running Model
-            if (textEl) {
-                textEl.innerText = model.label;
-            }
+            // Loop Keys (Try all keys on Best Model before downgrading)
+            for (let k = 0; k < keysToTry.length; k++) {
+                const currentKey = keysToTry[k];
 
-            try {
-                const body = payloadFactory(model.id);
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${state.apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-
-                if (response.status === 429 || response.status === 503) {
-                    console.warn(`Model ${model.id} exhausted (Status ${response.status})`);
-                    throw new Error("QuotaExhausted");
-                }
-
-                if (!response.ok) {
-                     const err = await response.text();
-                     console.warn(`Model ${model.id} error:`, err);
-                     throw new Error("ApiError");
-                }
-
-                const data = await response.json();
-                return data; // Success!
-
-            } catch (e) {
-                // If it's the last model, rethrow to be caught by caller (activates manual fallback/cooldown)
-                if (i === AI_MODELS.length - 1) throw e;
-
-                // Visual Switch Indicator
                 if (textEl) {
-                    textEl.innerText = `Switching to ${AI_MODELS[i+1].label}...`;
+                    textEl.innerText = `${model.label} (Key ${k+1})`;
                 }
-                
-                // Delay for visual feedback
-                await new Promise(resolve => setTimeout(resolve, 1500));
+
+                try {
+                    const body = payloadFactory(model.id);
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${currentKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+
+                    if (response.status === 429 || response.status === 503) {
+                        console.warn(`Model ${model.id} with Key ${k+1} exhausted.`);
+                        continue; // Try next key
+                    }
+
+                    if (!response.ok) {
+                         const err = await response.text();
+                         console.warn(`Model ${model.id} error:`, err);
+                         // If it's a permission/key error, maybe try next key? 
+                         // For now, treat 400s as fatal for that key, try next.
+                         continue; 
+                    }
+
+                    const data = await response.json();
+                    return data; // Success!
+
+                } catch (e) {
+                    console.warn(`Network error with Key ${k+1}`);
+                    continue; // Try next key
+                }
+            }
+            
+            // If we are here, ALL keys failed for this model.
+            // Downgrade model visually
+             if (textEl && m < AI_MODELS.length - 1) {
+                textEl.innerText = `Downgrading to ${AI_MODELS[m+1].label}...`;
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
         }
+        
+        // If we get here, everything failed.
+        throw new Error("QuotaExhausted");
     },
 
     // --- IMAGE HANDLING & AI (GEMINI) ---
@@ -735,6 +768,15 @@ Output JSON:
         const sources = state.groundingSources || [];
 
         let html = '';
+
+        // --- REGENERATE BUTTON ---
+        html += `
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+                <button class="btn ripple-effect" style="width: auto; padding: 8px 16px; font-size: 11px; height: 32px; background: var(--bg-input); color: var(--text-main);" onclick="app.startAnalysis()">
+                    <i class="fa fa-sync-alt"></i> Regenerate
+                </button>
+            </div>
+        `;
 
         // --- GROUNDING SOURCES ---
         if (sources.length > 0) {
