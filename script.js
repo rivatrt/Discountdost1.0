@@ -57,7 +57,7 @@ const state = {
     cooldownTimer: null
 };
 
-// Load Keys
+// Load Keys from Storage
 try {
     const stored = localStorage.getItem('discount_dost_gemini_keys');
     if (stored) {
@@ -87,12 +87,13 @@ window.app = {
                 }
             });
 
+            // Initial Key Check
             if (state.apiKeys.length > 0) {
                 const modal = document.getElementById('api-key-modal');
                 if(modal) modal.style.display = 'none';
             }
 
-            // Attach input listeners
+            // Input Listeners
             ['store', 'visits', 'aov', 'discount'].forEach(id => {
                 const el = document.getElementById(`inp-${id}`);
                 if(el) {
@@ -102,35 +103,36 @@ window.app = {
                 }
             });
 
-            // Register Service Worker for PWA
+            // Service Worker
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('./sw.js')
-                    .then(() => console.log('Service Worker Registered'))
                     .catch(e => console.log('SW Registration Failed:', e));
             }
 
-            // Handle Install Prompt
+            // --- NATIVE INSTALL LOGIC ---
+            // 1. Android/Chrome/Desktop: Listen for beforeinstallprompt
             window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
+                e.preventDefault(); // Stash event
                 state.installPrompt = e;
-                // SHOW INSTALL BUTTON ON ANDROID/DESKTOP WHEN PROMPT IS READY
                 const btn = document.getElementById('install-btn');
-                if (btn) btn.style.display = 'flex';
+                if (btn) btn.style.display = 'flex'; // Show only when available
             });
 
+            // 2. iOS Detection (No event, check UA + Standalone status)
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+            
+            if (isIOS && !isStandalone) {
+                const btn = document.getElementById('install-btn');
+                if (btn) btn.style.display = 'flex';
+            }
+
+            // 3. Hide on successful install
             window.addEventListener('appinstalled', () => {
                 state.installPrompt = null;
                 const btn = document.getElementById('install-btn');
                 if (btn) btn.style.display = 'none';
             });
-
-            // IOS DETECT - Show button manually because no beforeinstallprompt event
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
-            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-            if (isIOS && !isStandalone) {
-                const btn = document.getElementById('install-btn');
-                if (btn) btn.style.display = 'flex';
-            }
 
         } catch (err) {
             console.error("Init error:", err);
@@ -138,7 +140,7 @@ window.app = {
     },
 
     installPWA: async () => {
-        // 1. Try Native Android Prompt (Prioritized)
+        // SCENARIO A: Native Android/Desktop Prompt available
         if (state.installPrompt) {
             state.installPrompt.prompt();
             const { outcome } = await state.installPrompt.userChoice;
@@ -150,7 +152,7 @@ window.app = {
             return;
         }
 
-        // 2. iOS Fallback Instruction
+        // SCENARIO B: iOS Instructions
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
         
         if (isIOS) {
@@ -176,12 +178,12 @@ window.app = {
         const list = document.getElementById('key-list');
         list.innerHTML = '';
         
-        // Render 5 inputs
+        // Render 5 inputs populated with existing keys
         for (let i = 0; i < 5; i++) {
             const val = state.apiKeys[i] || '';
             list.innerHTML += `
                 <input type="text" id="key-slot-${i}" class="cat-trigger" 
-                    placeholder="API Key ${i+1}" value="${val}" 
+                    placeholder="Gemini API Key ${i+1}" value="${val}" 
                     style="padding: 12px; font-size: 14px;">
             `;
         }
@@ -192,7 +194,7 @@ window.app = {
         const newKeys = [];
         for (let i = 0; i < 5; i++) {
             const el = document.getElementById(`key-slot-${i}`);
-            if (el && el.value.trim().length > 10) {
+            if (el && el.value.trim().length > 10) { // Basic validation
                 newKeys.push(el.value.trim());
             }
         }
@@ -201,6 +203,9 @@ window.app = {
             state.apiKeys = newKeys;
             localStorage.setItem('discount_dost_gemini_keys', JSON.stringify(newKeys));
             document.getElementById('key-manager-modal').style.display = 'none';
+            
+            // Also hide initial blocker if it was open
+            document.getElementById('api-key-modal').style.display = 'none';
             alert(`Saved ${newKeys.length} keys.`);
         } else {
             alert("Please enter at least one valid key.");
@@ -208,7 +213,7 @@ window.app = {
     },
 
     saveApiKey: () => {
-        // Legacy single key save (redirects to array logic)
+        // Handler for initial blocking modal
         const input = document.getElementById('gemini-key-input');
         if (!input) return;
         const key = input.value.trim();
@@ -237,7 +242,6 @@ window.app = {
         else header.classList.remove('shrink');
     },
 
-    // Navigation logic split: navTo (pushes state) and renderPage (updates DOM)
     navTo: (page) => {
         if (state.page === page) return;
         window.history.pushState({page: page}, "", "");
@@ -298,15 +302,11 @@ window.app = {
     },
 
     toggleDeal: (el) => {
-        // Prevent toggle if editing
         if (document.activeElement && document.activeElement.getAttribute('contenteditable') === 'true') return;
-        
-        // Handle Repeat Card wrapper expansion specifically
         if (el.classList.contains('repeat-card-wrapper')) {
              el.classList.toggle('expanded');
              return;
         }
-        
         el.classList.toggle('expanded');
     },
 
@@ -314,7 +314,7 @@ window.app = {
         window.print();
     },
 
-    // --- LIVE MATH UPDATE FOR DEALS (PERCENTAGE BASED) ---
+    // --- LIVE MATH UPDATE FOR DEALS ---
     updateDealMath: (el) => {
         const card = el.closest('.deal-card');
         if (!card) return;
@@ -550,9 +550,7 @@ window.app = {
                     if (!response.ok) {
                          const err = await response.text();
                          console.warn(`Model ${model.id} error:`, err);
-                         // If it's a permission/key error, maybe try next key? 
-                         // For now, treat 400s as fatal for that key, try next.
-                         continue; 
+                         continue; // Fatal error for this request, but try next key just in case
                     }
 
                     const data = await response.json();
@@ -772,7 +770,7 @@ Output JSON:
         // --- REGENERATE BUTTON ---
         html += `
             <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-                <button class="btn ripple-effect" style="width: auto; padding: 8px 16px; font-size: 11px; height: 32px; background: var(--bg-input); color: var(--text-main);" onclick="app.startAnalysis()">
+                <button class="btn ripple-effect" style="width: auto; padding: 8px 16px; font-size: 11px; height: 32px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);" onclick="app.startAnalysis()">
                     <i class="fa fa-sync-alt"></i> Regenerate
                 </button>
             </div>

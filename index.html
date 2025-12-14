@@ -10,7 +10,7 @@
     
     <title>Discount Dost</title>
     
-    <!-- FAVICON: Professional Yellow D on Black -->
+    <!-- FAVICON -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjkwIiBmaWxsPSIjMDAwMDAwIi8+PHBhdGggZD0iTTE2NSAxMTAgSCAyNjUgQyAzNTUgMTEwIDQxNSAxNzUgNDE1IDI1NiBDIDQxNSAzMzcgMzU1IDQwMiAyNjUgNDAyIEggMTY1IFYgMTEwIFogTSAyMjUgMTcwIFYgMzQyIEggMjY1IEMgMzE1IDM0MiAzNTUgMzA1IDM1NSAyNTYgQyAzNTUgMjA3IDMxNSAxNzAgMjY1IDE3MCBVIDIyNSBaIiBmaWxsPSIjRkZDMTA3Ii8+PC9zdmc+">
     
     <!-- MANIFEST -->
@@ -110,7 +110,7 @@
             text-transform: uppercase; letter-spacing: 0.5px; 
             margin-bottom: 8px; border: 1px solid var(--border-color); 
             transition: all 0.3s var(--ease-oneui); opacity: 1; transform: translateY(0);
-            cursor: pointer; /* Clickable for Secret Menu */
+            cursor: pointer; /* HIDDEN MENU TRIGGER */
         }
         .logo-svg { width: 24px; height: 24px; border-radius: 6px; }
 
@@ -135,7 +135,7 @@
             font-size: 11px; 
             font-weight: 800; 
             height: 40px; 
-            display: none; /* Hidden by default */
+            display: none; /* Crucial: Only JS enables this */
             align-items: center; 
             gap: 8px; 
             box-shadow: 0 4px 12px rgba(255, 87, 34, 0.4); 
@@ -538,7 +538,7 @@
             </div>
         </div>
 
-        <!-- API KEY MODAL -->
+        <!-- API KEY MODAL (INITIAL BLOCKER) -->
         <div class="api-key-modal" id="api-key-modal" style="display: flex;">
             <div class="modal-box" onclick="event.stopPropagation()">
                 <div class="hf-badge">GOOGLE GEMINI</div>
@@ -550,7 +550,7 @@
             </div>
         </div>
 
-        <!-- NEW KEY MANAGER MODAL -->
+        <!-- HIDDEN KEY MANAGER MODAL (LOGO TAP) -->
         <div class="modal-overlay" id="key-manager-modal" style="display: none;" onclick="document.getElementById('key-manager-modal').style.display='none'">
             <div class="modal-box" onclick="event.stopPropagation()">
                 <div class="hf-badge" style="background:#FFC107; color:#000;">KEY MANAGER</div>
