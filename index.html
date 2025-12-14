@@ -14,10 +14,7 @@
     
     <!-- FAVICON -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjkwIiBmaWxsPSIjMDAwMDAwIi8+PHBhdGggZD0iTTE2NSAxMTAgSCAyNjUgQyAzNTUgMTEwIDQxNSAxNzUgNDE1IDI1NiBDIDQxNSAzMzcgMzU1IDQwMiAyNjUgNDAyIEggMTY1IFYgMTEwIFogTSAyMjUgMTcwIFYgMzQyIEggMjY1IEMgMzE1IDM0MiAzNTUgMzA1IDM1NSAyNTYgQyAzNTUgMjA3IDMxNSAxNzAgMjY1IDE3MCBVIDIyNSBaIiBmaWxsPSIjRkZDMTA3Ii8+PC9zdmc+">
-    
-    <!-- PWA: Manifest -->
     <link rel="manifest" href="./manifest.json">
-    <!-- PWA: iOS Icon -->
     <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjkwIiBmaWxsPSIjMDAwMDAwIi8+PHBhdGggZD0iTTE2NSAxMTAgSCAyNjUgQyAzNTUgMTEwIDQxNSAxNzUgNDE1IDI1NiBDIDQxNSAzMzcgMzU1IDQwMiAyNjUgNDAyIEggMTY1IFYgMTEwIFogTSAyMjUgMTcwIFYgMzQyIEggMjY1IEMgMzE1IDM0MiAzNTUgMzA1IDM1NSAyNTYgQyAzNTUgMjA3IDMxNSAxNzAgMjY1IDE3MCBVIDIyNSBaIiBmaWxsPSIjRkZDMTA3Ii8+PC9zdmc+">
     
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -34,7 +31,6 @@
             --text-sub: #98989f;
             --brand: #FF5722;
             --brand-gradient: linear-gradient(135deg, #FF5722, #FF8A65);
-            --brand-soft: rgba(255, 87, 34, 0.25);
             --gold-main: #FFB300;
             --gold-grad: linear-gradient(135deg, #FFC107 0%, #FF9800 100%);
             --success: #00C853;
@@ -47,6 +43,7 @@
             --safe-bottom: env(safe-area-inset-bottom, 0px);
             --modal-overlay: rgba(0,0,0,0.8);
             --shadow-header: 0 4px 15px rgba(0,0,0,0.5);
+            --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         body.light-mode {
@@ -91,29 +88,41 @@
         .logo-svg { width: 24px; height: 24px; border-radius: 6px; }
         h1 { font-size: 38px; font-weight: 800; margin: 0; line-height: 1.1; transition: font-size 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
 
-        .icon-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--bg-input); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; color: var(--text-main); font-size: 16px; }
+        .icon-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--bg-input); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; color: var(--text-main); font-size: 18px; }
+        .icon-btn:active { transform: scale(0.9); }
         .back-btn { opacity: 0; pointer-events: none; transform: translateX(-10px); }
         .back-btn.visible { opacity: 1; pointer-events: auto; transform: translateX(0); }
 
         /* INSTALL BUTTON */
-        .install-pill { background: var(--brand-gradient); color: white; padding: 0 16px; border-radius: 20px; font-size: 11px; font-weight: 800; height: 40px; display: none; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(255, 87, 34, 0.4); cursor: pointer; white-space: nowrap; z-index: 505; }
+        .install-pill { background: var(--brand-gradient); color: white; padding: 0 16px; border-radius: 20px; font-size: 11px; font-weight: 800; height: 40px; display: none; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(255, 87, 34, 0.4); cursor: pointer; white-space: nowrap; z-index: 505; transition: transform 0.2s; }
         .install-pill:active { transform: scale(0.95); }
 
         /* MAIN */
         main { position: fixed; top: 0; bottom: 0; left: 0; right: 0; overflow-y: auto; overflow-x: hidden; padding-top: calc(170px + var(--safe-top)); padding-bottom: calc(100px + var(--safe-bottom)); padding-left: 20px; padding-right: 20px; z-index: 10; scroll-behavior: smooth; }
         
         /* COMMON UI */
-        .card { background: var(--bg-surface); border-radius: var(--radius-xl); padding: 24px; margin-bottom: 16px; border: 1px solid var(--border-color); }
+        .card { background: var(--bg-surface); border-radius: var(--radius-xl); padding: 24px; margin-bottom: 16px; border: 1px solid var(--border-color); box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
         .input-group { margin-bottom: 20px; }
-        .input-group label { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-sub); margin-bottom: 8px; display: block; }
-        .cat-trigger, input, textarea { width: 100%; padding: 22px; background: var(--bg-input); border-radius: var(--radius-l); font-size: 18px; font-weight: 700; color: var(--text-main); border: 2px solid transparent; font-family: 'Manrope', sans-serif; }
-        input:focus, textarea:focus { background: var(--bg-surface); border-color: var(--brand); }
-        .btn { width: 100%; padding: 22px; border-radius: var(--radius-l); border: none; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; position: relative; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-top: 15px; }
+        .input-group label { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-sub); margin-bottom: 8px; display: block; letter-spacing: 0.5px; margin-left: 4px; }
+        .cat-trigger, input, textarea { width: 100%; padding: 20px; background: var(--bg-input); border-radius: var(--radius-l); font-size: 17px; font-weight: 600; color: var(--text-main); border: 2px solid transparent; font-family: 'Manrope', sans-serif; transition: 0.2s; }
+        input:focus, textarea:focus { background: var(--bg-surface); border-color: var(--brand); transform: translateY(-2px); }
+        .btn { width: 100%; padding: 20px; border-radius: var(--radius-l); border: none; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; position: relative; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-top: 15px; transition: transform 0.2s var(--ease-spring); }
+        .btn:active { transform: scale(0.96); }
         .btn-black { background: var(--primary); color: var(--bg-body); }
         .btn-brand { background: var(--brand-gradient); color: white; }
-        .btn-gold { background: var(--gold-grad); color: #000; }
-        .ripple-effect { position: relative; overflow: hidden; transform: translate3d(0, 0, 0); }
+        .btn-gold { background: var(--gold-grad); color: #000; box-shadow: 0 8px 30px rgba(255, 179, 0, 0.3); }
+        .ripple-effect { position: relative; overflow: hidden; }
 
+        /* GOLD DEAL CARD UI */
+        .gold-card { background: radial-gradient(circle at top left, #FFD54F, #FFB300); color: #000; border-radius: 22px; padding: 24px; position: relative; overflow: hidden; margin-bottom: 20px; box-shadow: 0 15px 40px rgba(255, 179, 0, 0.15); animation: cardPop 0.5s var(--ease-spring); }
+        @keyframes cardPop { from { transform: scale(0.9) translateY(20px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+        .gold-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .gold-chip { width: 40px; height: 28px; background: rgba(255,255,255,0.3); border-radius: 6px; border: 1px solid rgba(255,255,255,0.4); }
+        .gold-title { font-size: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; }
+        .gold-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: rgba(0,0,0,0.05); padding: 10px; border-radius: 12px; margin-top: 10px; }
+        .gs-label { font-size: 10px; text-transform: uppercase; font-weight: 700; opacity: 0.6; }
+        .gs-val { font-size: 16px; font-weight: 800; }
+        
         /* ERROR TOAST */
         #error-toast {
             position: fixed; top: 20px; left: 20px; right: 20px; z-index: 9999;
@@ -128,22 +137,28 @@
         .err-msg { font-size: 12px; color: var(--text-main); margin-bottom: 10px; line-height: 1.4; }
         .err-btn { background: var(--bg-input); color: var(--text-main); border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
 
-        /* ... KEEPING EXISTING CSS FOR CARDS, DEALS, NAV ... */
         /* NAV */
         .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: calc(var(--nav-height) + var(--safe-bottom)); padding-bottom: calc(20px + var(--safe-bottom)); background: var(--bg-glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; align-items: center; z-index: 600; }
-        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; color: var(--text-sub); transition: 0.3s; opacity: 0.5; }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; color: var(--text-sub); transition: 0.3s; opacity: 0.5; cursor: pointer; }
         .nav-item.active { color: var(--primary); opacity: 1; transform: translateY(-4px); }
-        .nav-icon-box { font-size: 20px; margin-bottom: 5px; width: 48px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 20px; }
+        .nav-icon-box { font-size: 20px; margin-bottom: 5px; width: 48px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 20px; transition: 0.2s; }
         .nav-item.active .nav-icon-box { background: rgba(125,125,125,0.15); }
 
         .page { display: none; }
-        .page.active { display: block; animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .page.active { display: block; }
+        
+        /* Staggered Animations */
+        .stagger-in { opacity: 0; animation: fadeSlideUp 0.5s ease forwards; }
+        .stagger-in:nth-child(1) { animation-delay: 0.1s; }
+        .stagger-in:nth-child(2) { animation-delay: 0.2s; }
+        .stagger-in:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
         /* LOADER & MODALS */
         .loader-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-body); z-index: 2000; display: none; flex-direction: column; align-items: center; justify-content: center; }
         .modal-overlay, .api-key-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--modal-overlay); z-index: 1000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
-        .modal-box { background: var(--bg-surface); width: 85%; max-width: 380px; border-radius: 32px; padding: 32px; text-align: center; border: 1px solid var(--border-color); }
+        .modal-box { background: var(--bg-surface); width: 85%; max-width: 380px; border-radius: 32px; padding: 32px; text-align: center; border: 1px solid var(--border-color); box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: popIn 0.3s var(--ease-spring); }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -173,41 +188,44 @@
         </header>
 
         <main id="scroll-container" onscroll="app.handleScroll()">
-            <!-- LOADER -->
+            <!-- SMART LOADER -->
             <div id="loader" class="loader-overlay">
                 <div style="text-align:center;">
                     <div style="font-size: 50px; color: var(--brand); margin-bottom: 20px;"><i class="fa fa-circle-notch fa-spin"></i></div>
-                    <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: var(--text-sub);">AI PROCESSING</div>
+                    <div id="loader-msg" style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: var(--text-sub); text-transform: uppercase;">CONNECTING...</div>
+                    <div style="margin-top: 10px; font-size: 11px; opacity: 0.5; color: var(--text-main);">Using <span id="model-badge">Gemini Flash</span></div>
                 </div>
             </div>
 
             <!-- PAGE 1: INPUT -->
             <div id="view-input" class="page active">
-                <div class="card">
+                <div class="card stagger-in">
                     <div class="input-group">
                         <label>Store Name</label>
                         <input type="text" id="inp-store" placeholder="e.g. Cafe Blue">
                     </div>
-                    <!-- Simplified for output constraint, assume other inputs exist per previous file -->
-                    <div class="input-group"><label>Daily Visits</label><input type="tel" id="inp-visits" placeholder="50"></div>
-                    <div class="input-group"><label>Avg Bill (₹)</label><input type="tel" id="inp-aov" placeholder="1500"></div>
-                    <div class="input-group"><label>Discount %</label><input type="tel" id="inp-discount" placeholder="15"></div>
+                    <!-- Assuming other inputs exist as per context -->
+                    <div class="input-group"><label>Daily Customer Visits</label><input type="tel" id="inp-visits" placeholder="e.g. 50"></div>
+                    <div class="input-group"><label>Avg Bill Value (₹)</label><input type="tel" id="inp-aov" placeholder="e.g. 1500"></div>
+                    <div class="input-group"><label>Current Discount (%)</label><input type="tel" id="inp-discount" placeholder="e.g. 15"></div>
                 </div>
-                <button class="btn btn-black ripple-effect" onclick="app.validateAndNav(2)">Analyze Impact <i class="fa fa-arrow-right"></i></button>
+                <button class="btn btn-black ripple-effect stagger-in" onclick="app.validateAndNav(2)">Analyze Impact <i class="fa fa-arrow-right"></i></button>
                 <div style="height: 100px;"></div>
             </div>
 
-            <!-- PAGE 2: RESULTS -->
+            <!-- PAGE 2: RESULTS (Gold Deal Preview) -->
             <div id="view-results" class="page">
                 <div id="results-container"></div>
-                <button class="btn btn-gold ripple-effect" onclick="app.navTo(3)">Generate Strategy <i class="fa fa-magic"></i></button>
+                <button class="btn btn-gold ripple-effect stagger-in" onclick="app.navTo(3)">Generate Strategy <i class="fa fa-magic"></i></button>
+                <div style="height: 100px;"></div>
             </div>
 
             <!-- PAGE 3: STRATEGY -->
             <div id="view-strategy" class="page">
-                <div id="strategy-input-panel" class="card">
-                    <div style="font-weight: 700; font-size: 18px; margin-bottom: 10px;">Brand Strategy</div>
-                    <textarea id="menu-text" rows="5" placeholder="Paste menu items..."></textarea>
+                <div id="strategy-input-panel" class="card stagger-in">
+                    <div style="font-weight: 700; font-size: 18px; margin-bottom: 5px;">Brand Strategy</div>
+                    <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 15px;">AI will analyze your menu to suggest high-margin bundles.</p>
+                    <textarea id="menu-text" rows="5" placeholder="Paste menu items (e.g. Burger 250, Coke 80)..."></textarea>
                     <button class="btn btn-black ripple-effect" onclick="app.startAnalysis()">Analyze Menu</button>
                 </div>
                 <div id="strategy-results" style="padding-bottom: 50px; display: none;"></div>
