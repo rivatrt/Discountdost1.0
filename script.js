@@ -238,7 +238,7 @@ window.app = {
         window.print();
     },
 
-    // --- LIVE MATH UPDATE FOR DEALS (ABSOLUTE VALUE EDIT) ---
+    // --- LIVE MATH UPDATE FOR DEALS (PERCENTAGE BASED) ---
     updateDealMath: (el) => {
         const card = el.closest('.deal-card');
         if (!card) return;
@@ -249,43 +249,31 @@ window.app = {
             return e ? parseFloat(e.innerText.replace(/[^0-9.]/g, '')) || 0 : 0;
         }
 
-        const isBillEdit = el.classList.contains('deal-price-edit');
-        const isGoldEdit = el.classList.contains('val-gold');
-        const isFeeEdit = el.classList.contains('val-fee');
-
+        // 1. Get Base Price (Customer Pays)
         let price = getNum('.deal-price-edit');
-        let gold = getNum('.val-gold');
-        let fee = getNum('.val-fee');
-        let gst = 0;
 
-        if (isBillEdit) {
-            // Recalculate everything based on defaults if bill changes
-            gold = Math.round(price * 0.10);
-            fee = Math.round(price * 0.10);
-        } else if (isGoldEdit) {
-            // Keep fee as is, update net
-        } else if (isFeeEdit) {
-            // Update tax based on fee
-        }
+        // 2. Get Percentages
+        let goldPct = getNum('.pct-gold');
+        let feePct = getNum('.pct-fee');
+        let gstPct = getNum('.pct-gst'); // usually 18
 
-        gst = Math.round(fee * 0.18);
+        // 3. Calculate absolute values based on percentage
+        const gold = Math.round(price * (goldPct / 100));
+        const fee = Math.round(price * (feePct / 100));
+        const gst = Math.round(fee * (gstPct / 100));
         const net = price - gold - fee - gst;
 
-        // Update DOM elements
+        // 4. Update DOM elements
         const setTxt = (sel, val, isNeg=false) => {
             const e = card.querySelector(sel);
             if(e) e.innerText = (isNeg ? "- " : "") + window.app.fmt(val);
         }
 
-        if (isBillEdit) {
-            setTxt('.val-gold', gold, true);
-            setTxt('.val-fee', fee, true);
-        }
-
+        setTxt('.val-gold', gold, true);
+        setTxt('.val-fee', fee, true);
         setTxt('.val-gst', gst, true);
         setTxt('.val-net', net);
-        
-        if(!isBillEdit) setTxt('.val-bill', price); // Ensure bill visual consistency
+        setTxt('.val-bill', price); // Ensure inner breakdown matches outer price
         
         // Update tag
         const tag = card.querySelector('.deal-tag');
@@ -725,6 +713,11 @@ Output JSON:
             const gstOnFee = Math.round(platformFee * 0.18);
             const net = price - gold - platformFee - gstOnFee;
             
+            // Calculate starting percentages for display
+            const goldPct = Math.round((gold / price) * 100) || 10;
+            const feePct = 10;
+            const gstPct = 18;
+
             html += `
                 <div class="deal-card deal-card-new stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${idx * 0.05}s;">
                     <!-- HEADER -->
@@ -758,7 +751,7 @@ Output JSON:
                         </div>
                     </div>
 
-                    <!-- EDITABLE BREAKDOWN (ABSOLUTE VALUES) -->
+                    <!-- EDITABLE BREAKDOWN (PERCENTAGE RESTORED) -->
                     <div class="math-breakdown">
                         <div style="padding: 20px;">
                             <div class="math-row">
@@ -767,21 +760,23 @@ Output JSON:
                             </div>
 
                             <div class="math-row">
-                                <div class="math-label" style="display:flex; align-items:center;">
-                                    User Gets Gold (Cost) <i class="fa fa-pen" style="font-size:10px; margin-left:6px; opacity:0.5;"></i>
+                                <div class="math-label">
+                                    User Gets Gold (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gold">${goldPct}</span>%)
                                 </div>
-                                <div class="math-val val-gold" contenteditable="true" oninput="app.updateDealMath(this)" style="color:#FFB300; border-bottom:1px dashed #FFB300;">- ${window.app.fmt(gold)}</div>
+                                <div class="math-val val-gold" style="color:#FFB300;">- ${window.app.fmt(gold)}</div>
                             </div>
 
                             <div class="math-row">
-                                <div class="math-label" style="display:flex; align-items:center;">
-                                    Platform Fee (10%) <i class="fa fa-pen" style="font-size:10px; margin-left:6px; opacity:0.5;"></i>
+                                <div class="math-label">
+                                    Platform Fee (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-fee">${feePct}</span>%)
                                 </div>
-                                <div class="math-val val-fee" contenteditable="true" oninput="app.updateDealMath(this)" style="color:#FF5722; border-bottom:1px dashed #FF5722;">- ${window.app.fmt(platformFee)}</div>
+                                <div class="math-val val-fee" style="color:#FF5722;">- ${window.app.fmt(platformFee)}</div>
                             </div>
 
                             <div class="math-row">
-                                <div class="math-label">GST on Fee (18%)</div>
+                                <div class="math-label">
+                                    GST on Fee (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gst">${gstPct}</span>%)
+                                </div>
                                 <div class="math-val val-gst" style="color:#FF5722;">- ${window.app.fmt(gstOnFee)}</div>
                             </div>
 
