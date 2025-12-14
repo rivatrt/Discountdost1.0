@@ -13,8 +13,8 @@
     <!-- FAVICON -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjkwIiBmaWxsPSIjMDAwMDAwIi8+PHBhdGggZD0iTTE2NSAxMTAgSCAyNjUgQyAzNTUgMTEwIDQxNSAxNzUgNDE1IDI1NiBDIDQxNSAzMzcgMzU1IDQwMiAyNjUgNDAyIEggMTY1IFYgMTEwIFogTSAyMjUgMTcwIFYgMzQyIEggMjY1IEMgMzE1IDM0MiAzNTUgMzA1IDM1NSAyNTYgQyAzNTUgMjA3IDMxNSAxNzAgMjY1IDE3MCBVIDIyNSBaIiBmaWxsPSIjRkZDMTA3Ii8+PC9zdmc+">
     
-    <!-- MANIFEST: Validated JSON for PWA -->
-    <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiRGlzY291bnQgRG9zdCIsInNob3J0X25hbWUiOiJEaXNjb3VudCBEb3N0Iiwic3RhcnRfdXJsIjoiLi8iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjMDAwMDAwIiwidGhlbWVfY29sb3IiOiIjMDAwMDAwIiwidHlwZSI6ImltYWdlL3BuZyIsImljb25zIjpbeyJzcmMiOiJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhabFpYZENiM2c5SWpBd0lEQWdOVEV5TlRFeUlpPjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiByeD0iOTAiIGZpbGw9IiMwMDAwMDAiLz48cGF0aCBkPSJNMTY1IDExMCBIIDI2NSBDIDM1NSAxMTAgNDE1IDE3NSA0MTUgMjU2IEMgNDE1IDMzNyAzNTUgNDAyIDI2NSA0MDIgSCAxNjUgViAxMTAgWiBNIDIyNSAxNzAgViAzNDIgSCAyNjUgQyAzMTUgMzQyIDM1NSAzMDUgMzU1IDI1NiBDIDM1NSAyMDcgMzE1IDE3MCAyNjUgMTcwIEggMjI1IFoiIGZpbGw9IiNGRkMxMDciLz48L3N2Zz4iLCJzaXplcyI6IjUxMng1MTIiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCJ9XX0=">
+    <!-- MANIFEST: Fixed Icon Type for PWA Installability -->
+    <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiRGlzY291bnQgRG9zdCIsInNob3J0X25hbWUiOiJEaXNjb3VudCBEb3N0Iiwic3RhcnRfdXJsIjoiLi8iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjMDAwMDAwIiwidGhlbWVfY29sb3IiOiIjMDAwMDAwIiwidHlwZSI6ImltYWdlL3N2Zyt4bWwiLCJpY29ucyI6W3sic3JjIjoiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCNGJXeHVjejBpYUhSMGNEb3ZMM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhabFpYZENiM2c5SWpBd0lEQWdOVEV5TlRFeUlpPjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiByeD0iOTAiIGZpbGw9IiMwMDAwMDAiLz48cGF0aCBkPSJNMTY1IDExMCBIIDI2NSBDIDM1NSAxMTAgNDE1IDE3NSA0MTUgMjU2IEMgNDE1IDMzNyAzNTUgNDAyIDI2NSA0MDIgSCAxNjUgViAxMTAgWiBNIDIyNSAxNzAgViAzNDIgSCAyNjUgQyAzMTUgMzQyIDM1NSAzMDUgMzU1IDI1NiBDIDM1NSAyMDcgMzE1IDE3MCAyNjUgMTcwIEggMjI1IFoiIGZpbGw9IiNGRkMxMDciLz48L3N2Zz4iLCJzaXplcyI6IjUxMng1MTIiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCJ9XX0=">
     
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -99,9 +99,10 @@
             margin-bottom: 20px; 
             transition: transform 0.4s var(--ease-oneui), opacity 0.3s ease; 
             transform-origin: left bottom; 
+            pointer-events: auto; /* Ensure clickable */
         }
 
-        /* PREMIUM LOGO */
+        /* PREMIUM LOGO & HIDDEN MENU TRIGGER */
         .brand-pill { 
             display: inline-flex; align-items: center; gap: 8px; 
             padding: 4px 12px 4px 4px; background: var(--bg-surface); 
@@ -110,8 +111,13 @@
             text-transform: uppercase; letter-spacing: 0.5px; 
             margin-bottom: 8px; border: 1px solid var(--border-color); 
             transition: all 0.3s var(--ease-oneui); opacity: 1; transform: translateY(0);
-            cursor: pointer; /* HIDDEN MENU TRIGGER */
+            cursor: pointer; 
+            position: relative; 
+            z-index: 1001; /* High Z to ensure clickable */
+            user-select: none;
+            -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
         }
+        .brand-pill:active { transform: scale(0.95); opacity: 0.8; }
         .logo-svg { width: 24px; height: 24px; border-radius: 6px; }
 
         h1 { font-size: 38px; font-weight: 800; margin: 0; letter-spacing: -1px; line-height: 1.1; transition: font-size 0.4s var(--ease-oneui); color: var(--text-main); }
