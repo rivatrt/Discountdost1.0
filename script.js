@@ -72,6 +72,12 @@ window.app = {
             window.app.renderCategoryGrid();
             window.app.renderManualInputs();
             
+            // Check Standalone Mode (Hide Install Button)
+            if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+                const btn = document.getElementById('install-btn');
+                if (btn) btn.style.display = 'none';
+            }
+            
             // Handle Native Back Button / Swipe
             window.history.replaceState({page: 1}, "", "");
             window.addEventListener('popstate', (event) => {
@@ -106,7 +112,7 @@ window.app = {
             window.addEventListener('beforeinstallprompt', (e) => {
                 e.preventDefault();
                 state.installPrompt = e;
-                // Button is always visible per user request, so we just capture the event
+                // Button is visible by default (CSS), but we can animate it or highlight it here if needed
             });
 
             window.addEventListener('appinstalled', () => {
@@ -121,7 +127,7 @@ window.app = {
     },
 
     installPWA: async () => {
-        // 1. Try Native Android Prompt
+        // 1. Try Native Android Prompt (if available)
         if (state.installPrompt) {
             state.installPrompt.prompt();
             const { outcome } = await state.installPrompt.userChoice;
@@ -133,19 +139,32 @@ window.app = {
             return;
         }
 
-        // 2. Detect iOS for Instructions
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        if (isIOS) {
-            document.getElementById('ios-install-modal').style.display = 'flex';
-            return;
-        }
+        // 2. Fallback: Manual Instructions (iOS or dismissed Android)
+        const modal = document.getElementById('install-help-modal');
+        const iconDiv = modal.querySelector('.modal-icon');
+        const title = modal.querySelector('h3');
+        const desc = modal.querySelector('p');
 
-        // 3. Fallback for others (Desktop/Firefox)
-        alert("To install app:\nTap your browser's menu (⋮) and select 'Install App' or 'Add to Home Screen'.");
+        // Robust iOS Detection (including iPad on desktop mode)
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                      (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+
+        if (isIOS) {
+            iconDiv.innerHTML = '<i class="fab fa-apple"></i>';
+            title.innerText = "Install on iOS";
+            desc.innerHTML = `1. Tap the <b>Share</b> button <i class="fa fa-share-square"></i><br>2. Scroll down & select <br><b>"Add to Home Screen"</b> <i class="fa fa-plus-square"></i>`;
+        } else {
+            // Android / Desktop / Other
+            iconDiv.innerHTML = '<i class="fab fa-android"></i>';
+            title.innerText = "Install App";
+            desc.innerHTML = `1. Tap the browser menu <i class="fa fa-ellipsis-v"></i><br>2. Select <b>"Install App"</b> or <br><b>"Add to Home Screen"</b>`;
+        }
+        
+        modal.style.display = 'flex';
     },
     
-    closeIosModal: () => {
-        document.getElementById('ios-install-modal').style.display = 'none';
+    closeInstallModal: () => {
+        document.getElementById('install-help-modal').style.display = 'none';
     },
 
     saveApiKey: () => {

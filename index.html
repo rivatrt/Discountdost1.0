@@ -134,14 +134,14 @@
             font-size: 11px; 
             font-weight: 800; 
             height: 40px; 
-            display: flex; /* Always visible as per request */
+            display: flex; /* Visible by default via CSS */
             align-items: center; 
             gap: 8px; 
             box-shadow: 0 4px 12px rgba(255, 87, 34, 0.4); 
             cursor: pointer; 
             transition: transform 0.2s ease;
             white-space: nowrap;
-            z-index: 505; /* High z-index to ensure visibility */
+            z-index: 505; 
         }
         .install-pill:active { transform: scale(0.95); }
         .install-pill i { font-size: 12px; }
@@ -527,16 +527,13 @@
             </div>
         </div>
         
-        <!-- iOS INSTALL MODAL -->
-        <div class="modal-overlay" id="ios-install-modal" onclick="app.closeIosModal()">
+        <!-- GENERIC INSTALL MODAL -->
+        <div class="modal-overlay" id="install-help-modal" onclick="app.closeInstallModal()">
             <div class="modal-box" onclick="event.stopPropagation()">
-                <div style="font-size: 40px; margin-bottom: 20px; color: var(--text-main);"><i class="fab fa-apple"></i></div>
-                <h3 style="margin:0 0 10px 0; font-weight: 800;">Install on iOS</h3>
-                <p style="font-size:13px; color:var(--text-sub); margin-bottom:20px; line-height: 1.6;">
-                    1. Tap the <b>Share</b> button <i class="fa fa-share-square"></i><br>
-                    2. Scroll down & select <br><b>"Add to Home Screen"</b> <i class="fa fa-plus-square"></i>
-                </p>
-                <button class="btn btn-black ripple-effect" onclick="app.closeIosModal()">Got it</button>
+                <div class="modal-icon" style="font-size: 40px; margin-bottom: 20px; color: var(--text-main);"></div>
+                <h3 style="margin:0 0 10px 0; font-weight: 800;">Install App</h3>
+                <p style="font-size:13px; color:var(--text-sub); margin-bottom:20px; line-height: 1.6;"></p>
+                <button class="btn btn-black ripple-effect" onclick="app.closeInstallModal()">Got it</button>
             </div>
         </div>
 
