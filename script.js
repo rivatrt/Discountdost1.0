@@ -31,10 +31,11 @@ const LOADING_MSGS = [
     "> applying_psychology..."
 ];
 
+// OPTIMIZED: Prioritize Flash models for speed
 const AI_MODELS = [
-    { id: 'gemini-3-pro-preview', label: 'Gemini 3 Pro', tier: 'High Intelligence' },
     { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', tier: 'High Speed' },
-    { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', tier: 'Standard' }
+    { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', tier: 'Standard' },
+    { id: 'gemini-3-pro-preview', label: 'Gemini 3 Pro', tier: 'High Intelligence' }
 ];
 
 // --- APP STATE ---
@@ -610,7 +611,7 @@ window.app = {
                         console.warn("AI Scan failed. Using Smart Fallback.", err);
                         const fallbackData = window.app.getFallbackMenu(state.category.id);
                         document.getElementById('menu-text').value = fallbackData;
-                        setTimeout(() => window.app.toggleLoader(false), 800);
+                        setTimeout(() => window.app.toggleLoader(false), 200);
                     }
                 }
             };
@@ -634,7 +635,7 @@ window.app = {
 
             // Reset Badge
             if (textEl) {
-                textEl.innerText = `GEMINI 3 PRO`; // Default start
+                textEl.innerText = `GEMINI 2.5 FLASH`; // Default start (Updated)
             }
 
             // START TIPS ROTATION (MERCHANT TIPS)
@@ -715,15 +716,15 @@ Output JSON:
 
         try {
             // GENERATE WITH FALLBACK
+            // OPTIMIZED: Removed Google Search tool to speed up deal generation (was "AI Optimize")
             const result = await window.app.generateWithFallback((modelId) => ({
-                contents: [{ parts: [{ text: prompt }] }],
-                tools: [{ googleSearch: {} }] 
+                contents: [{ parts: [{ text: prompt }] }]
             }));
 
             const candidate = result?.candidates?.[0];
             let jsonText = candidate?.content?.parts?.[0]?.text;
             
-            // Extract Grounding Metadata
+            // Extract Grounding Metadata (Will be empty now since tool removed)
             const groundingChunks = candidate?.groundingMetadata?.groundingChunks || [];
             state.groundingSources = groundingChunks.map(c => c.web).filter(w => w);
 
@@ -753,7 +754,8 @@ Output JSON:
                  window.app.renderStrategy();
             }
         } finally {
-             setTimeout(() => window.app.toggleLoader(false), 500);
+             // OPTIMIZED: Faster transition
+             setTimeout(() => window.app.toggleLoader(false), 100);
         }
     },
 
@@ -996,4 +998,4 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', window.app.init);
 } else {
     window.app.init();
-                }
+                                   }
