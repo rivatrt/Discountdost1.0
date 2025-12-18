@@ -575,47 +575,71 @@ window.app = {
         throw new Error("QuotaExhausted");
     },
 
-    // --- IMAGE HANDLING & AI (GEMINI) ---
+    // --- IMAGE & PDF HANDLING & AI (GEMINI) ---
     handleFile: async (input) => {
-        if (input.files && input.files[0]) {
-            const file = input.files[0];
-            const reader = new FileReader();
+        if (input.files && input.files.length > 0) {
+            const files = Array.from(input.files);
+            
+            // Limit checks (optional but good for production)
+            if (files.length > 10) return alert("Please upload a maximum of 10 files at a time.");
 
             window.app.toggleLoader(true, true); // true, true for scan mode
-            
-            reader.onload = async (e) => {
-                const base64Data = e.target.result;
-                const base64Content = base64Data.split(',')[1]; // Strip header
 
-                try {
-                    // GENERATE WITH FALLBACK
-                    const result = await window.app.generateWithFallback((modelId) => ({
-                        contents: [{
-                            parts: [
-                                { text: "Extract list of menu items and prices. Output simple text list." },
-                                { inline_data: { mime_type: "image/jpeg", data: base64Content } }
-                            ]
-                        }]
-                    }));
+            try {
+                // 1. PROCESS FILES IN PARALLEL (FAST)
+                const filePromises = files.map(file => {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const base64Data = e.target.result.split(',')[1];
+                            // Determine mime type (fallback to jpeg if missing, handle pdf)
+                            let mime = file.type || "image/jpeg";
+                            // Basic mime type fix for common extensions if type is empty
+                            if (!mime && file.name.toLowerCase().endsWith('.pdf')) mime = 'application/pdf';
+                            if (!mime && file.name.toLowerCase().match(/\.(jpg|jpeg)$/)) mime = 'image/jpeg';
+                            if (!mime && file.name.toLowerCase().endsWith('.png')) mime = 'image/png';
+                            
+                            resolve({ inline_data: { mime_type: mime, data: base64Data } });
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                });
 
-                    let scannedText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                    if (!scannedText || scannedText.length < 5) throw new Error("OCR yielded little text");
+                const inlineDataParts = await Promise.all(filePromises);
 
-                    document.getElementById('menu-text').value = scannedText.trim();
-                    window.app.toggleLoader(false);
+                // 2. BATCH API CALL (One request for all files)
+                // Note: Gemini API standard is text part first, then images/media
+                const result = await window.app.generateWithFallback((modelId) => ({
+                    contents: [{
+                        parts: [
+                            { text: "Analyze these menu images/PDFs. Extract all menu items and prices into a single clean list. Ignore phone numbers or addresses." },
+                            ...inlineDataParts 
+                        ]
+                    }]
+                }));
 
-                } catch (err) {
-                    if (err.message === "QuotaExhausted") {
-                        window.app.triggerCooldown();
-                    } else {
-                        console.warn("AI Scan failed. Using Smart Fallback.", err);
-                        const fallbackData = window.app.getFallbackMenu(state.category.id);
-                        document.getElementById('menu-text').value = fallbackData;
-                        setTimeout(() => window.app.toggleLoader(false), 200);
-                    }
+                // 3. PARSE RESULT
+                let scannedText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                
+                if (!scannedText || scannedText.length < 5) throw new Error("OCR yielded little text");
+
+                // Replace existing text
+                document.getElementById('menu-text').value = scannedText.trim();
+                
+            } catch (err) {
+                if (err.message === "QuotaExhausted") {
+                    window.app.triggerCooldown();
+                } else {
+                    console.warn("AI Scan failed.", err);
+                    alert("Could not scan files. Please ensure PDFs are text-readable or try images.");
+                    const fallbackData = window.app.getFallbackMenu(state.category.id);
+                    document.getElementById('menu-text').value = fallbackData;
                 }
-            };
-            reader.readAsDataURL(file);
+            } finally {
+                input.value = ''; 
+                window.app.toggleLoader(false);
+            }
         }
     },
 
@@ -998,4 +1022,4 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', window.app.init);
 } else {
     window.app.init();
-                                   }
+    }
