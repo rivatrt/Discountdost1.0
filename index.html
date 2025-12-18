@@ -12,13 +12,9 @@
     
     <title>Discount Dost</title>
     
-    <!-- FAVICON (Browser Tab) -->
+    <!-- FAVICON -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjkwIiBmaWxsPSIjMDAwMDAwIi8+PHBhdGggZD0iTTE2NSAxMTAgSCAyNjUgQyAzNTUgMTEwIDQxNSAxNzUgNDE1IDI1NiBDIDQxNSAzMzcgMzU1IDQwMiAyNjUgNDAyIEggMTY1IFYgMTEwIFogTSAyMjUgMTcwIFYgMzQyIEggMjY1IEMgMzE1IDM0MiAzNTUgMzA1IDM1NSAyNTYgQyAzNTUgMjA3IDMxNSAxNzAgMjY1IDE3MCBVIDIyNSBaIiBmaWxsPSIjRkZDMTA3Ii8+PC9zdmc+">
-    
-    <!-- PWA: iOS Icon (Home Screen) -->
     <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjkwIiBmaWxsPSIjMDAwMDAwIi8+PHBhdGggZD0iTTE2NSAxMTAgSCAyNjUgQyAzNTUgMTEwIDQxNSAxNzUgNDE1IDI1NiBDIDQxNSAzMzcgMzU1IDQwMiAyNjUgNDAyIEggMTY1IFYgMTEwIFogTSAyMjUgMTcwIFYgMzQyIEggMjY1IEMgMzE1IDM0MiAzNTUgMzA1IDM1NSAyNTYgQyAzNTUgMjA3IDMxNSAxNzAgMjY1IDE3MCBVIDIyNSBaIiBmaWxsPSIjRkZDMTA3Ii8+PC9zdmc+">
-
-    <!-- PWA: Manifest File -->
     <link rel="manifest" href="./manifest.json">
     
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -107,7 +103,7 @@
             pointer-events: auto; /* Ensure clickable */
         }
 
-        /* PREMIUM LOGO & HIDDEN MENU TRIGGER */
+        /* PREMIUM LOGO */
         .brand-pill { 
             display: inline-flex; align-items: center; gap: 8px; 
             padding: 4px 12px 4px 4px; background: var(--bg-surface); 
@@ -118,9 +114,8 @@
             transition: all 0.3s var(--ease-oneui); opacity: 1; transform: translateY(0);
             cursor: pointer; 
             position: relative; 
-            z-index: 1001; /* High Z to ensure clickable */
+            z-index: 1001; 
             user-select: none;
-            -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
         }
         .brand-pill:active { transform: scale(0.95); opacity: 0.8; }
         .logo-svg { width: 24px; height: 24px; border-radius: 6px; }
@@ -137,26 +132,15 @@
         .back-btn { opacity: 0; pointer-events: none; transform: translateX(-10px); transition: 0.3s; }
         .back-btn.visible { opacity: 1; pointer-events: auto; transform: translateX(0); }
         
-        /* INSTALL BUTTON - HIDDEN BY DEFAULT */
+        /* INSTALL BUTTON */
         .install-pill { 
-            background: var(--brand-gradient); 
-            color: white; 
-            padding: 0 16px; 
-            border-radius: 20px; 
-            font-size: 11px; 
-            font-weight: 800; 
-            height: 40px; 
-            display: none; /* Crucial: Only JS enables this */
-            align-items: center; 
-            gap: 8px; 
+            background: var(--brand-gradient); color: white; padding: 0 16px; 
+            border-radius: 20px; font-size: 11px; font-weight: 800; height: 40px; 
+            display: none; align-items: center; gap: 8px; 
             box-shadow: 0 4px 12px rgba(255, 87, 34, 0.4); 
-            cursor: pointer; 
-            transition: transform 0.2s ease;
-            white-space: nowrap;
-            z-index: 505; 
+            cursor: pointer; transition: transform 0.2s ease; white-space: nowrap; z-index: 505; 
         }
         .install-pill:active { transform: scale(0.95); }
-        .install-pill i { font-size: 12px; }
 
         /* MAIN */
         main { 
@@ -221,7 +205,6 @@
         .gold-text { color: #FFB300; font-weight: 800; }
         .rc-logo-corner { position: absolute; top: 20px; right: 20px; font-size: 20px; color: rgba(255,255,255,0.1); }
         
-        /* Expansion logic for Repeat Card */
         .repeat-card-wrapper .math-breakdown { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 0 0 16px 16px; margin-top: -15px; padding-top: 25px; position: relative; z-index: 1; transform: translateY(-10px); transition: 0.4s var(--ease-oneui); }
         .repeat-card-wrapper.expanded .math-breakdown { max-height: 500px; opacity: 1; transform: translateY(0); }
         
@@ -265,10 +248,10 @@
         .cat-item { background: var(--bg-input); padding: 18px 8px; border-radius: 20px; text-align: center; border: 2px solid transparent; transition: 0.2s; color: var(--text-main); cursor: pointer; }
         .cat-item.selected { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
 
-        /* --- UPDATED MINIMAL PROFESSIONAL LOADER --- */
+        /* --- UPDATED HOLOGRAPHIC SCANNER LOADER --- */
         .loader-overlay { 
             position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-            background: var(--bg-body); /* Adaptive background */
+            background: var(--bg-body); 
             z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; 
             animation: fadeIn 0.4s ease; 
         }
@@ -278,35 +261,75 @@
             width: 100%;
         }
 
-        /* 1. Logo with Breathing Effect */
+        /* Holographic Box */
         .loader-logo-box {
-            position: relative; width: 80px; height: 80px;
+            position: relative; width: 100px; height: 100px;
             display: flex; align-items: center; justify-content: center;
             margin-bottom: 40px;
+            border-radius: 20px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(255, 87, 34, 0.2);
         }
         .loader-logo-box svg {
-            width: 60px; height: 60px;
+            width: 70px; height: 70px;
             z-index: 2;
-            animation: breathLogo 3s infinite ease-in-out;
-            filter: drop-shadow(0 0 20px rgba(255, 193, 7, 0.4));
+            opacity: 0.8;
         }
-        @keyframes breathLogo {
-            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(255, 193, 7, 0.3)); }
-            50% { transform: scale(1.08); filter: drop-shadow(0 0 30px rgba(255, 193, 7, 0.6)); }
+        .scan-beam {
+            position: absolute;
+            top: -100%; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, transparent, rgba(255, 193, 7, 0.5), transparent);
+            z-index: 3;
+            animation: scanMove 2s infinite ease-in-out;
+            pointer-events: none;
+        }
+        @keyframes scanMove {
+            0% { top: -100%; }
+            100% { top: 100%; }
         }
 
-        /* 2. Personalized Text */
+        /* Progress Bar */
+        .progress-container {
+            width: 80%;
+            max-width: 300px;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            margin-top: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar-fill {
+            position: absolute;
+            top: 0; left: 0; bottom: 0;
+            width: 0%;
+            background: var(--brand-gradient);
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px var(--brand);
+        }
+
+        /* Dynamic Status Text */
         .loader-text-group { text-align: center; margin-bottom: 30px; }
         .loader-label { 
             font-size: 10px; font-weight: 700; color: var(--text-sub); 
             text-transform: uppercase; letter-spacing: 3px; margin-bottom: 8px; opacity: 0.7; 
         }
         .loader-brand { 
-            font-size: 22px; font-weight: 700; color: var(--text-main); /* Adaptive text */
+            font-size: 22px; font-weight: 700; color: var(--text-main); 
             letter-spacing: 0.5px; font-family: 'Manrope', sans-serif; 
         }
+        .status-msg-dynamic {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--brand);
+            margin-top: 10px;
+            min-height: 20px;
+            font-weight: 700;
+        }
 
-        /* 3. Tech/Data Crunching Graphic */
+        /* Tech/Data Crunching Graphic */
         .model-status-box {
             background: var(--bg-surface);
             border: 1px solid var(--border-color);
@@ -316,6 +339,7 @@
             width: 280px;
             backdrop-filter: blur(10px);
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-top: 20px;
         }
         .ms-row { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 4px; }
         .ms-dot { width: 6px; height: 6px; background: #00E676; border-radius: 50%; box-shadow: 0 0 8px #00E676; animation: blinkStatus 1.5s infinite; }
@@ -354,7 +378,7 @@
             .repeat-card-visual { background: #fff !important; border: 1px solid #000; color: #000 !important; height: auto; padding: 10px; }
             .rc-store-name, .rc-offer-main, .gold-text { color: #000 !important; text-shadow: none !important; }
             * { text-shadow: none !important; color: #000 !important; }
-            .math-breakdown { display: none !important; } /* Hide math details on print */
+            .math-breakdown { display: none !important; } 
         }
     </style>
 </head>
@@ -377,7 +401,6 @@
             </div>
             <div class="header-content-wrapper" id="header-content">
                 <div class="brand-pill" onclick="app.openKeyManager()">
-                    <!-- NEW PROFESSIONAL D LOGO -->
                     <svg class="logo-svg" viewBox="0 0 512 512">
                         <rect width="512" height="512" rx="90" fill="#000000"/>
                         <path d="M165 110 H 265 C 355 110 415 175 415 256 C 415 337 355 402 265 402 H 165 V 110 Z M 225 170 V 342 H 265 C 315 342 355 305 355 256 C 355 207 315 170 265 170 H 225 Z" fill="#FFC107"/>
@@ -390,31 +413,38 @@
 
         <!-- MAIN CONTENT -->
         <main id="scroll-container" onscroll="app.handleScroll()">
-            <!-- LOADER -->
+            <!-- UPDATED LOADER -->
             <div id="loader" class="loader-overlay" style="display: none;">
                 <div class="loader-content">
-                    <!-- Logo Box -->
+                    <!-- Holographic Logo Box -->
                     <div class="loader-logo-box">
+                         <div class="scan-beam"></div>
                          <svg viewBox="0 0 512 512">
                              <rect width="512" height="512" rx="90" fill="#000000"/>
                              <path d="M165 110 H 265 C 355 110 415 175 415 256 C 415 337 355 402 265 402 H 165 V 110 Z M 225 170 V 342 H 265 C 315 342 355 305 355 256 C 355 207 315 170 265 170 H 225 Z" fill="#FFC107"/>
                         </svg>
                     </div>
                     
-                    <!-- Personalized Header -->
+                    <!-- Personalized Header & Status -->
                     <div class="loader-text-group">
                         <div class="loader-label">DESIGNING STRATEGY FOR</div>
                         <div class="loader-brand" id="loader-store-name">Your Business</div>
+                        <div class="status-msg-dynamic" id="status-dynamic">Initializing Scanner...</div>
                     </div>
 
-                    <!-- Tech Graphic / Data Crunching -->
+                    <!-- Progress Bar -->
+                    <div class="progress-container">
+                        <div class="progress-bar-fill" id="loader-progress"></div>
+                    </div>
+
+                    <!-- Tech Graphic -->
                     <div class="model-status-box">
                         <div class="ms-row">
                             <div style="display:flex; align-items:center; gap:8px;">
                                 <span class="ms-dot"></span>
                                 <span style="font-size:10px; color:var(--text-sub); opacity:0.8;">AI MODEL</span>
                             </div>
-                            <span class="ms-model" id="loader-model-text">GEMINI 3 PRO</span>
+                            <span class="ms-model" id="loader-model-text">GEMINI 2.5 FLASH</span>
                         </div>
                         <div class="ms-terminal" id="loader-terminal">
                             <!-- JS injects lines here -->
@@ -494,6 +524,7 @@
                     <div style="text-align: center; margin-top: 15px;">
                          <span style="font-size: 12px; color: var(--text-sub); text-decoration: underline; cursor: pointer;" onclick="app.openManualModal()">Or enter items manually</span>
                     </div>
+                    <!-- MULTIPLE FILE INPUT -->
                     <input type="file" id="file-in" style="display: none;" multiple accept="image/*,application/pdf" onchange="app.handleFile(this)">
                 </div>
 
@@ -561,7 +592,7 @@
             </div>
         </div>
 
-        <!-- HIDDEN KEY MANAGER MODAL (LOGO TAP) -->
+        <!-- HIDDEN KEY MANAGER MODAL -->
         <div class="modal-overlay" id="key-manager-modal" style="display: none;" onclick="document.getElementById('key-manager-modal').style.display='none'">
             <div class="modal-box" onclick="event.stopPropagation()">
                 <div class="hf-badge" style="background:#FFC107; color:#000;">KEY MANAGER</div>
@@ -577,4 +608,6 @@
     </div>
     <script src="./script.js"></script>
 </body>
-    </html>
+</html>
+
+
