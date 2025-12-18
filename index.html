@@ -103,7 +103,7 @@
             pointer-events: auto; /* Ensure clickable */
         }
 
-        /* PREMIUM LOGO */
+        /* PREMIUM LOGO & HIDDEN MENU TRIGGER */
         .brand-pill { 
             display: inline-flex; align-items: center; gap: 8px; 
             padding: 4px 12px 4px 4px; background: var(--bg-surface); 
@@ -114,8 +114,9 @@
             transition: all 0.3s var(--ease-oneui); opacity: 1; transform: translateY(0);
             cursor: pointer; 
             position: relative; 
-            z-index: 1001; 
+            z-index: 1001; /* High Z to ensure clickable */
             user-select: none;
+            -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
         }
         .brand-pill:active { transform: scale(0.95); opacity: 0.8; }
         .logo-svg { width: 24px; height: 24px; border-radius: 6px; }
@@ -132,15 +133,26 @@
         .back-btn { opacity: 0; pointer-events: none; transform: translateX(-10px); transition: 0.3s; }
         .back-btn.visible { opacity: 1; pointer-events: auto; transform: translateX(0); }
         
-        /* INSTALL BUTTON */
+        /* INSTALL BUTTON - HIDDEN BY DEFAULT */
         .install-pill { 
-            background: var(--brand-gradient); color: white; padding: 0 16px; 
-            border-radius: 20px; font-size: 11px; font-weight: 800; height: 40px; 
-            display: none; align-items: center; gap: 8px; 
+            background: var(--brand-gradient); 
+            color: white; 
+            padding: 0 16px; 
+            border-radius: 20px; 
+            font-size: 11px; 
+            font-weight: 800; 
+            height: 40px; 
+            display: none; /* Crucial: Only JS enables this */
+            align-items: center; 
+            gap: 8px; 
             box-shadow: 0 4px 12px rgba(255, 87, 34, 0.4); 
-            cursor: pointer; transition: transform 0.2s ease; white-space: nowrap; z-index: 505; 
+            cursor: pointer; 
+            transition: transform 0.2s ease;
+            white-space: nowrap;
+            z-index: 505; 
         }
         .install-pill:active { transform: scale(0.95); }
+        .install-pill i { font-size: 12px; }
 
         /* MAIN */
         main { 
@@ -205,6 +217,7 @@
         .gold-text { color: #FFB300; font-weight: 800; }
         .rc-logo-corner { position: absolute; top: 20px; right: 20px; font-size: 20px; color: rgba(255,255,255,0.1); }
         
+        /* Expansion logic for Repeat Card */
         .repeat-card-wrapper .math-breakdown { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 0 0 16px 16px; margin-top: -15px; padding-top: 25px; position: relative; z-index: 1; transform: translateY(-10px); transition: 0.4s var(--ease-oneui); }
         .repeat-card-wrapper.expanded .math-breakdown { max-height: 500px; opacity: 1; transform: translateY(0); }
         
@@ -261,7 +274,7 @@
             width: 100%;
         }
 
-        /* Holographic Box */
+        /* Holographic Scan Effect & Pulsating Glow */
         .loader-logo-box {
             position: relative; width: 100px; height: 100px;
             display: flex; align-items: center; justify-content: center;
@@ -271,23 +284,33 @@
             border: 1px solid rgba(255,255,255,0.1);
             overflow: hidden;
             box-shadow: 0 0 30px rgba(255, 87, 34, 0.2);
+            animation: pulseGlow 2.5s infinite ease-in-out;
         }
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 20px rgba(255, 87, 34, 0.2); border-color: rgba(255,255,255,0.1); }
+            50% { box-shadow: 0 0 45px rgba(255, 193, 7, 0.5); border-color: rgba(255, 193, 7, 0.5); transform: scale(1.02); }
+            100% { box-shadow: 0 0 20px rgba(255, 87, 34, 0.2); border-color: rgba(255,255,255,0.1); }
+        }
+
         .loader-logo-box svg {
             width: 70px; height: 70px;
             z-index: 2;
-            opacity: 0.8;
+            opacity: 0.9;
+            filter: drop-shadow(0 0 10px rgba(255, 193, 7, 0.4));
         }
         .scan-beam {
             position: absolute;
             top: -100%; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to bottom, transparent, rgba(255, 193, 7, 0.5), transparent);
+            background: linear-gradient(to bottom, transparent, rgba(255, 193, 7, 0.8), transparent);
             z-index: 3;
             animation: scanMove 2s infinite ease-in-out;
             pointer-events: none;
         }
         @keyframes scanMove {
-            0% { top: -100%; }
-            100% { top: 100%; }
+            0% { top: -120%; opacity: 0; }
+            30% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { top: 120%; opacity: 0; }
         }
 
         /* Progress Bar */
@@ -378,7 +401,7 @@
             .repeat-card-visual { background: #fff !important; border: 1px solid #000; color: #000 !important; height: auto; padding: 10px; }
             .rc-store-name, .rc-offer-main, .gold-text { color: #000 !important; text-shadow: none !important; }
             * { text-shadow: none !important; color: #000 !important; }
-            .math-breakdown { display: none !important; } 
+            .math-breakdown { display: none !important; } /* Hide math details on print */
         }
     </style>
 </head>
@@ -401,6 +424,7 @@
             </div>
             <div class="header-content-wrapper" id="header-content">
                 <div class="brand-pill" onclick="app.openKeyManager()">
+                    <!-- NEW PROFESSIONAL D LOGO -->
                     <svg class="logo-svg" viewBox="0 0 512 512">
                         <rect width="512" height="512" rx="90" fill="#000000"/>
                         <path d="M165 110 H 265 C 355 110 415 175 415 256 C 415 337 355 402 265 402 H 165 V 110 Z M 225 170 V 342 H 265 C 315 342 355 305 355 256 C 355 207 315 170 265 170 H 225 Z" fill="#FFC107"/>
@@ -413,7 +437,7 @@
 
         <!-- MAIN CONTENT -->
         <main id="scroll-container" onscroll="app.handleScroll()">
-            <!-- UPDATED LOADER -->
+            <!-- LOADER -->
             <div id="loader" class="loader-overlay" style="display: none;">
                 <div class="loader-content">
                     <!-- Holographic Logo Box -->
@@ -425,7 +449,7 @@
                         </svg>
                     </div>
                     
-                    <!-- Personalized Header & Status -->
+                    <!-- Personalized Header -->
                     <div class="loader-text-group">
                         <div class="loader-label">DESIGNING STRATEGY FOR</div>
                         <div class="loader-brand" id="loader-store-name">Your Business</div>
@@ -437,7 +461,7 @@
                         <div class="progress-bar-fill" id="loader-progress"></div>
                     </div>
 
-                    <!-- Tech Graphic -->
+                    <!-- Tech Graphic / Data Crunching -->
                     <div class="model-status-box">
                         <div class="ms-row">
                             <div style="display:flex; align-items:center; gap:8px;">
@@ -592,7 +616,7 @@
             </div>
         </div>
 
-        <!-- HIDDEN KEY MANAGER MODAL -->
+        <!-- HIDDEN KEY MANAGER MODAL (LOGO TAP) -->
         <div class="modal-overlay" id="key-manager-modal" style="display: none;" onclick="document.getElementById('key-manager-modal').style.display='none'">
             <div class="modal-box" onclick="event.stopPropagation()">
                 <div class="hf-badge" style="background:#FFC107; color:#000;">KEY MANAGER</div>
