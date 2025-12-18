@@ -696,7 +696,7 @@ Output JSON:
 {
   "deals": [{"title": "string", "items": "string", "real_value": number, "deal_price": number, "gold": number}], 
   "vouchers": [{"threshold": number, "amount": number, "desc": "string"}], 
-  "repeatCard": {"trigger": "Bill > Amount", "next_visit_min_spend": number, "next_visit_gold_reward": number, "card_title": "string", "card_desc": "string"}
+  "repeatCard": {"trigger": "string", "next_visit_min_spend": number, "next_visit_gold_reward": number, "card_title": "string", "card_desc": "string"}
 }`;
 
         try {
@@ -716,8 +716,34 @@ Output JSON:
             
             if (!jsonText) throw new Error("Empty AI response");
 
-            const parsed = JSON.parse(jsonText);
-            if (!parsed.deals || parsed.deals.length < 3) throw new Error("Incomplete deals");
+            let parsed;
+            try {
+                parsed = JSON.parse(jsonText);
+            } catch (e) {
+                throw new Error("Invalid JSON from AI");
+            }
+
+            // ROBUSTNESS CHECKS & SELF-HEALING LOGIC
+            if (!parsed.deals || !Array.isArray(parsed.deals) || parsed.deals.length === 0) throw new Error("No deals found");
+            
+            // Auto-fix missing repeatCard (AI hallucination guard)
+            if (!parsed.repeatCard) {
+                parsed.repeatCard = {
+                    trigger: `Bill > ${window.app.fmt(Number(state.aov)/2)}`,
+                    next_visit_min_spend: Number(state.aov),
+                    next_visit_gold_reward: Math.round(Number(state.aov)*0.1),
+                    card_title: "Gold Member",
+                    card_desc: "Visit 5 times to unlock bonus"
+                };
+            }
+
+            // Auto-fix missing vouchers (AI hallucination guard)
+            if (!parsed.vouchers || !Array.isArray(parsed.vouchers)) {
+                parsed.vouchers = [
+                    {threshold: Number(state.aov), amount: Math.round(Number(state.aov)*0.05), desc: "Bronze Reward"},
+                    {threshold: Number(state.aov)*2, amount: Math.round(Number(state.aov)*0.2), desc: "Silver Reward"}
+                ];
+            }
             
             state.strategy = parsed;
             window.app.renderStrategy();
@@ -727,6 +753,7 @@ Output JSON:
                 window.app.triggerCooldown();
             } else {
                 console.warn("AI failed. Using Smart Parse Fallback:", err);
+                 // Fallback Data so user never sees blank screen
                  const deals = [];
                  for(let i=0; i<10; i++) deals.push({title: "Offer "+(i+1), items: "Best Items", real_value: Number(state.aov), deal_price: Number(state.aov), gold: Math.round(state.aov*0.1)});
                  const vouchers = [{threshold: 1000, amount: 100, desc: "Visit Bonus"}];
@@ -735,9 +762,256 @@ Output JSON:
                  window.app.renderStrategy();
             }
         } finally {
-             // Small delay to let the user see "Complete!"
              setTimeout(() => window.app.toggleLoader(false), 500);
         }
+    },
+
+    renderStrategy: () => {
+        document.getElementById('strategy-input-panel').style.display = 'none';
+        const container = document.getElementById('strategy-results');
+        container.style.display = 'block';
+
+        const s = state.strategy;
+        const sources = state.groundingSources || [];
+
+        let html = '';
+
+        // --- REGENERATE BUTTON ---
+        html += `
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+                <button class="btn ripple-effect" style="width: auto; padding: 8px 16px; font-size: 11px; height: 32px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);" onclick="app.startAnalysis()">
+                    <i class="fa fa-sync-alt"></i> Regenerate
+                </button>
+            </div>
+        `;
+
+        // --- GROUNDING SOURCES ---
+        if (sources.length > 0) {
+            html += `
+                <div style="margin-bottom: 20px; padding: 15px; background: rgba(66, 133, 244, 0.1); border: 1px solid rgba(66, 133, 244, 0.3); border-radius: 12px; animation: fadeUp 0.5s ease;">
+                    <div style="font-size: 11px; font-weight: 800; color: #4285F4; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">
+                        <i class="fab fa-google"></i> Verified with Google Search
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            `;
+            sources.forEach(src => {
+                if (src.uri && src.title) {
+                    html += `
+                        <a href="${src.uri}" target="_blank" style="font-size: 11px; color: var(--text-main); text-decoration: none; background: var(--bg-surface); padding: 4px 10px; border-radius: 15px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 5px;">
+                            ${src.title} <i class="fa fa-external-link-alt" style="font-size: 9px; opacity: 0.5;"></i>
+                        </a>
+                    `;
+                }
+            });
+            html += `</div></div>`;
+        }
+        
+        // --- 1. DEALS SECTION ---
+        html += `
+            <div style="display: flex; alignItems: center; gap: 8px; margin-bottom: 15px; margin-top: 10px;">
+                <div style="width: 24px; height: 24px; background: #FF5722; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
+                    <i class="fa fa-ticket-alt"></i>
+                </div>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">10 Exclusive Deals</span>
+            </div>
+            <div>
+        `;
+
+        if (s.deals && s.deals.length > 0) {
+            s.deals.forEach((deal, idx) => {
+                const realVal = deal.real_value || deal.price || 0;
+                const price = deal.deal_price || deal.price || 0;
+                const gold = Math.max(30, deal.gold || Math.round(price * 0.10));
+                
+                const platformFee = Math.round(price * 0.10);
+                const gstOnFee = Math.round(platformFee * 0.18);
+                const net = price - gold - platformFee - gstOnFee;
+                
+                // Calculate starting percentages for display
+                const goldPct = price > 0 ? Math.round((gold / price) * 100) : 10;
+                const feePct = 10;
+                const gstPct = 18;
+
+                html += `
+                    <div class="deal-card deal-card-new stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${idx * 0.05}s;">
+                        <!-- HEADER -->
+                        <div class="deal-header">
+                            <div style="font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px;">
+                                DEAL #${idx+1}
+                            </div>
+                            <div class="deal-tag">
+                                GET ${window.app.fmt(gold)} GOLD
+                            </div>
+                        </div>
+
+                        <!-- BODY -->
+                        <div class="deal-body">
+                            <div contenteditable="true" style="font-size: 18px; font-weight: 800; margin-bottom: 6px; color: var(--text-main); line-height: 1.3;">${deal.title || 'Special Offer'}</div>
+                            <div contenteditable="true" style="font-size: 13px; color: var(--text-sub); line-height: 1.4; opacity: 0.8;">${deal.items || 'Best Items'}</div>
+                            
+                            <div class="deal-price-box">
+                                <div>
+                                    <div class="price-label">Customer Pays (Full MRP)</div>
+                                    <div contenteditable="true" oninput="app.updateDealMath(this)" class="deal-price-edit" style="font-size: 20px; font-weight: 800; color: var(--brand); letter-spacing: -0.5px;">${window.app.fmt(price)}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div class="price-label">Real Value</div>
+                                    <div style="font-size: 14px; font-weight: 600; color: var(--text-sub);">${window.app.fmt(realVal)}</div>
+                                </div>
+                            </div>
+
+                            <div style="text-align: center; margin-top: 10px;">
+                                <div class="tap-hint">TAP TO EDIT MATH <i class="fa fa-chevron-down"></i></div>
+                            </div>
+                        </div>
+
+                        <!-- EDITABLE BREAKDOWN (PERCENTAGE RESTORED) -->
+                        <div class="math-breakdown">
+                            <div style="padding: 20px;">
+                                <div class="math-row">
+                                    <div class="math-label">Customer Pays (Revenue)</div>
+                                    <div class="math-val val-bill">${window.app.fmt(price)}</div>
+                                </div>
+
+                                <div class="math-row">
+                                    <div class="math-label">
+                                        User Gets Gold (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gold">${goldPct}</span>%)
+                                    </div>
+                                    <div class="math-val val-gold" style="color:#FFB300;">- ${window.app.fmt(gold)}</div>
+                                </div>
+
+                                <div class="math-row">
+                                    <div class="math-label">
+                                        Platform Fee (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-fee">${feePct}</span>%)
+                                    </div>
+                                    <div class="math-val val-fee" style="color:#FF5722;">- ${window.app.fmt(platformFee)}</div>
+                                </div>
+
+                                <div class="math-row">
+                                    <div class="math-label">
+                                        GST on Fee (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gst">${gstPct}</span>%)
+                                    </div>
+                                    <div class="math-val val-gst" style="color:#FF5722;">- ${window.app.fmt(gstOnFee)}</div>
+                                </div>
+
+                                <div style="padding-top: 12px; display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                                    <span style="font-size: 11px; color: #00E676; font-weight: 800; text-transform: uppercase;">Net Merchant Earning</span>
+                                    <span class="val-net" style="font-weight: 800;">${window.app.fmt(net)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        html += `
+            </div>
+            
+            <!-- 2. VOUCHERS SECTION -->
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;">
+                <div style="width: 24px; height: 24px; background: #FFC107; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: black; font-size: 12px;">
+                    <i class="fa fa-gift"></i>
+                </div>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Gold Vouchers (Retention)</span>
+            </div>
+            <div style="display: flex; overflow-x: auto; gap: 15px; padding-bottom: 20px; scroll-snap-type: x mandatory;">
+        `;
+
+        if (s.vouchers && s.vouchers.length > 0) {
+            s.vouchers.forEach((v, i) => {
+                html += `
+                    <div class="voucher-card-gold stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${0.5 + (i * 0.1)}s;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; opacity: 0.8;">VOUCHER</div>
+                            <div style="font-size: 10px; font-weight: 700; background: #000; color: #FFC107; padding: 2px 6px; border-radius: 4px;">GOLD</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px 0;">
+                            <div contenteditable="true" style="font-size: 32px; font-weight: 900; letter-spacing: -1px;">${window.app.fmt(v.amount)}</div>
+                            <div style="font-size: 10px; font-weight: 700; margin-top: 5px; opacity: 0.7;">ON BILL > ${window.app.fmt(v.threshold)}</div>
+                        </div>
+                        <div contenteditable="true" style="font-size: 11px; text-align: center; font-weight: 600; opacity: 0.8; line-height: 1.4;">${v.desc}</div>
+                    </div>
+                `;
+            });
+        }
+
+        html += `
+            </div>
+            
+            <!-- 3. PHYSICAL REPEAT CARD SECTION -->
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;">
+                <div style="width: 24px; height: 24px; background: #4CAF50; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
+                    <i class="fa fa-credit-card"></i>
+                </div>
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Physical Repeat Business Card</span>
+            </div>
+        `;
+
+        // Safe Access for Repeat Card (prevent crash)
+        const rc = s.repeatCard || {
+             trigger: "Bill > 500", 
+             next_visit_gold_reward: 50, 
+             next_visit_min_spend: 100, 
+             card_title: "Gold Member", 
+             card_desc: "Loyalty Card" 
+        };
+
+        html += `
+            <div class="repeat-card-wrapper stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: 1s;">
+                <!-- VISUAL CARD FRONT -->
+                <div class="repeat-card-visual">
+                    <div class="rc-logo-corner"><i class="fa fa-infinity"></i></div>
+                    <div>
+                        <div class="rc-chip"></div>
+                        <div class="rc-store-name">${state.storeName || "STORE NAME"}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.6); margin-bottom: 4px;">
+                             ${rc.card_title || "Platinum Club"}
+                        </div>
+                        <div class="rc-offer-main">
+                             Get <span class="gold-text">${window.app.fmt(rc.next_visit_gold_reward || 0)} Gold</span> on every visit
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EDIT PANEL -->
+                <div class="math-breakdown">
+                    <div style="padding: 20px;">
+                        <div style="font-size: 11px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 15px;">Physical Card Logic</div>
+                        
+                        <div class="rc-input-row">
+                            <span>Trigger Condition</span>
+                            <div class="rc-val-edit" contenteditable="true" style="width: 120px;">${rc.trigger || 'N/A'}</div>
+                        </div>
+
+                        <div class="rc-input-row">
+                            <span>Gold Reward Amount</span>
+                            <div class="rc-val-edit inp-rc-gold" contenteditable="true" oninput="app.updateRepeatCard()">${window.app.fmt(rc.next_visit_gold_reward || 0)}</div>
+                        </div>
+
+                        <div class="rc-input-row">
+                            <span>Redeem Min Bill</span>
+                            <div class="rc-val-edit" contenteditable="true">${window.app.fmt(rc.next_visit_min_spend || 0)}</div>
+                        </div>
+
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-sub); line-height: 1.4;">
+                            <i class="fa fa-print"></i> <b>Print this card.</b> Hand it to customers who spend above the trigger amount. They keep the card in their wallet and redeem Gold on every subsequent visit.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-brand ripple-effect" style="margin-top: 40px;" onclick="app.shareStrategy()">
+                <i class="fa fa-file-pdf"></i> Download Strategy PDF
+            </button>
+             <button class="btn ripple-effect" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-sub); margin-bottom: 50px;" onclick="location.reload()">
+                Reset Strategy
+            </button>
+        `;
+
+        container.innerHTML = html;
     }
 };
 
@@ -746,4 +1020,4 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', window.app.init);
 } else {
     window.app.init();
-}
+    }
