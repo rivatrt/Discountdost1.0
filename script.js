@@ -21,23 +21,6 @@ const MERCHANT_TIPS = [
     "Personalized rewards increase redemption rates by 6x."
 ];
 
-const LOADING_MSGS = [
-    "> scanning_menu_items...",
-    "> calculating_churn_risk...",
-    "> identifying_whales...",
-    "> benchmarking_competitors...",
-    "> optimizing_price_elasticity...",
-    "> generating_gold_hooks...",
-    "> applying_psychology..."
-];
-
-// OPTIMIZED: Prioritize Flash models for speed
-const AI_MODELS = [
-    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', tier: 'High Speed' },
-    { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', tier: 'Standard' },
-    { id: 'gemini-3-pro-preview', label: 'Gemini 3 Pro', tier: 'High Intelligence' }
-];
-
 // --- APP STATE ---
 const state = {
     page: 1,
@@ -52,11 +35,18 @@ const state = {
     groundingSources: [],
     loaderInterval: null,
     terminalInterval: null,
-    loaderStepIndex: 0,
+    loaderProgress: 0,
     manualItems: [{name:"", price:""}, {name:"", price:""}, {name:"", price:""}],
     installPrompt: null,
     cooldownTimer: null
 };
+
+// OPTIMIZED: Prioritize Flash models for speed
+const AI_MODELS = [
+    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', tier: 'High Speed' },
+    { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', tier: 'Standard' },
+    { id: 'gemini-3-pro-preview', label: 'Gemini 3 Pro', tier: 'High Intelligence' }
+];
 
 // Load Keys from Storage
 try {
@@ -111,15 +101,13 @@ window.app = {
             }
 
             // --- NATIVE INSTALL LOGIC ---
-            // 1. Android/Chrome/Desktop: Listen for beforeinstallprompt
             window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault(); // Stash event
+                e.preventDefault(); 
                 state.installPrompt = e;
                 const btn = document.getElementById('install-btn');
-                if (btn) btn.style.display = 'flex'; // Show only when available
+                if (btn) btn.style.display = 'flex'; 
             });
 
-            // 2. iOS Detection (No event, check UA + Standalone status)
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
             
@@ -128,7 +116,6 @@ window.app = {
                 if (btn) btn.style.display = 'flex';
             }
 
-            // 3. Hide on successful install
             window.addEventListener('appinstalled', () => {
                 state.installPrompt = null;
                 const btn = document.getElementById('install-btn');
@@ -141,7 +128,6 @@ window.app = {
     },
 
     installPWA: async () => {
-        // SCENARIO A: Native Android/Desktop Prompt available
         if (state.installPrompt) {
             state.installPrompt.prompt();
             const { outcome } = await state.installPrompt.userChoice;
@@ -153,9 +139,7 @@ window.app = {
             return;
         }
 
-        // SCENARIO B: iOS Instructions
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
-        
         if (isIOS) {
              const modal = document.getElementById('install-help-modal');
              const iconDiv = modal.querySelector('.modal-icon');
@@ -179,7 +163,6 @@ window.app = {
         const list = document.getElementById('key-list');
         list.innerHTML = '';
         
-        // Render 5 inputs populated with existing keys
         for (let i = 0; i < 5; i++) {
             const val = state.apiKeys[i] || '';
             list.innerHTML += `
@@ -195,7 +178,7 @@ window.app = {
         const newKeys = [];
         for (let i = 0; i < 5; i++) {
             const el = document.getElementById(`key-slot-${i}`);
-            if (el && el.value.trim().length > 10) { // Basic validation
+            if (el && el.value.trim().length > 10) { 
                 newKeys.push(el.value.trim());
             }
         }
@@ -204,8 +187,6 @@ window.app = {
             state.apiKeys = newKeys;
             localStorage.setItem('discount_dost_gemini_keys', JSON.stringify(newKeys));
             document.getElementById('key-manager-modal').style.display = 'none';
-            
-            // Also hide initial blocker if it was open
             document.getElementById('api-key-modal').style.display = 'none';
             alert(`Saved ${newKeys.length} keys.`);
         } else {
@@ -214,7 +195,6 @@ window.app = {
     },
 
     saveApiKey: () => {
-        // Handler for initial blocking modal
         const input = document.getElementById('gemini-key-input');
         if (!input) return;
         const key = input.value.trim();
@@ -252,18 +232,15 @@ window.app = {
     renderPage: (page) => {
         state.page = page;
         
-        // Update Tabs
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         const navItem = document.getElementById(`nav-${page}`);
         if(navItem) navItem.classList.add('active');
         
-        // Update Pages
         document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
         const targetPage = page === 1 ? 'view-input' : page === 2 ? 'view-results' : 'view-strategy';
         const pageEl = document.getElementById(targetPage);
         if(pageEl) pageEl.classList.add('active');
 
-        // Header Title
         const titleEl = document.getElementById('page-title');
         if (page === 1) titleEl.innerHTML = "Business<br>Details";
         else if (page === 2) {
@@ -293,7 +270,6 @@ window.app = {
         window.app.navTo(page);
     },
 
-    // --- RENDERING HELPERS ---
     fmt: (n) => "₹" + Math.round(Number(n)).toLocaleString('en-IN'),
     fmtCompact: (n) => {
         n = Number(n);
@@ -315,7 +291,6 @@ window.app = {
         window.print();
     },
 
-    // --- LIVE MATH UPDATE FOR DEALS ---
     updateDealMath: (el) => {
         const card = el.closest('.deal-card');
         if (!card) return;
@@ -388,22 +363,16 @@ window.app = {
                     <div style="padding: 12px 8px; font-size: 10px; font-weight: 800; color: var(--danger); border-right: 1px solid var(--border-color); background: rgba(255, 61, 0, 0.05);">CASH DISCOUNT<br>(LOSS)</div>
                     <div style="padding: 12px 8px; font-size: 10px; font-weight: 800; color: #FFB300; background: rgba(255, 179, 0, 0.05);">GOLD MODEL<br>(COST)</div>
                 </div>
-                
-                <!-- DAILY -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; background: var(--bg-input); border-bottom: 1px solid var(--border-color);">
                     <div style="padding: 15px; font-size: 12px; font-weight: 800; color: var(--text-main); border-right: 1px solid var(--border-color);">DAILY</div>
                     <div style="padding: 15px 8px; font-size: 14px; font-weight: 800; color: var(--danger); border-right: 1px solid var(--border-color);">${window.app.fmtCompact(discountDaily)}</div>
                     <div style="padding: 15px 8px; font-size: 14px; font-weight: 800; color: #FFB300;">${window.app.fmtCompact(goldDaily)}</div>
                 </div>
-
-                <!-- MONTHLY -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; background: var(--bg-input); border-bottom: 1px solid var(--border-color);">
                     <div style="padding: 15px; font-size: 12px; font-weight: 800; color: var(--text-main); border-right: 1px solid var(--border-color);">MONTHLY</div>
                     <div style="padding: 15px 8px; font-size: 14px; font-weight: 800; color: var(--danger); border-right: 1px solid var(--border-color);">${window.app.fmtCompact(discountMonthly)}</div>
                     <div style="padding: 15px 8px; font-size: 14px; font-weight: 800; color: #FFB300;">${window.app.fmtCompact(goldMonthly)}</div>
                 </div>
-
-                <!-- YEARLY -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; background: var(--bg-input);">
                     <div style="padding: 15px; font-size: 12px; font-weight: 800; color: var(--text-main); border-right: 1px solid var(--border-color);">YEARLY</div>
                     <div style="padding: 15px 8px; font-size: 14px; font-weight: 800; color: var(--danger); border-right: 1px solid var(--border-color);">${window.app.fmtCompact(discountYearly)}</div>
@@ -420,7 +389,6 @@ window.app = {
         document.getElementById('results-container').innerHTML = html;
     },
 
-    // --- MODALS ---
     openCatModal: () => {
         document.getElementById('cat-modal-bg').classList.add('open');
         document.getElementById('cat-modal-sheet').classList.add('open');
@@ -467,7 +435,6 @@ window.app = {
         }
     },
     
-    // --- SMART FALLBACK GENERATOR ---
     getFallbackMenu: (catId) => {
         const aov = Number(state.aov) || 500;
         const dictionaries = {
@@ -492,7 +459,6 @@ window.app = {
         return items.map(i => `${i.n} ${Math.round(aov * i.p)}`).join('\n');
     },
 
-    // --- COOLDOWN HANDLING ---
     triggerCooldown: () => {
         window.app.toggleLoader(false);
         const overlay = document.getElementById('cooldown-overlay');
@@ -515,19 +481,15 @@ window.app = {
         }, 1000);
     },
 
-    // --- UNIFIED AI FALLBACK HANDLER (MULTI-KEY ROTATION) ---
     generateWithFallback: async (payloadFactory) => {
         const textEl = document.getElementById('loader-model-text');
         
-        // Ensure we have at least one key to try (or legacy)
         const keysToTry = state.apiKeys.length > 0 ? state.apiKeys : [];
         if (keysToTry.length === 0) throw new Error("No API Keys");
 
-        // Loop Models (Best to Worst)
         for (let m = 0; m < AI_MODELS.length; m++) {
             const model = AI_MODELS[m];
             
-            // Loop Keys (Try all keys on Best Model before downgrading)
             for (let k = 0; k < keysToTry.length; k++) {
                 const currentKey = keysToTry[k];
 
@@ -545,56 +507,51 @@ window.app = {
 
                     if (response.status === 429 || response.status === 503) {
                         console.warn(`Model ${model.id} with Key ${k+1} exhausted.`);
-                        continue; // Try next key
+                        continue;
                     }
 
                     if (!response.ok) {
                          const err = await response.text();
                          console.warn(`Model ${model.id} error:`, err);
-                         continue; // Fatal error for this request, but try next key just in case
+                         continue;
                     }
 
                     const data = await response.json();
-                    return data; // Success!
+                    return data; 
 
                 } catch (e) {
                     console.warn(`Network error with Key ${k+1}`);
-                    continue; // Try next key
+                    continue;
                 }
             }
             
-            // If we are here, ALL keys failed for this model.
-            // Downgrade model visually
              if (textEl && m < AI_MODELS.length - 1) {
                 textEl.innerText = `Downgrading to ${AI_MODELS[m+1].label}...`;
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
         }
         
-        // If we get here, everything failed.
         throw new Error("QuotaExhausted");
     },
 
-    // --- IMAGE & PDF HANDLING & AI (GEMINI) ---
+    // --- PARALLEL FILE SCANNING ---
     handleFile: async (input) => {
         if (input.files && input.files.length > 0) {
             const files = Array.from(input.files);
             
-            // Limit checks (optional but good for production)
             if (files.length > 10) return alert("Please upload a maximum of 10 files at a time.");
 
-            window.app.toggleLoader(true, true); // true, true for scan mode
+            window.app.toggleLoader(true, true); 
 
             try {
-                // 1. PROCESS FILES IN PARALLEL (FAST)
+                // 1. Convert all files to Base64 in Parallel
                 const filePromises = files.map(file => {
                     return new Promise((resolve, reject) => {
                         const reader = new FileReader();
                         reader.onload = (e) => {
                             const base64Data = e.target.result.split(',')[1];
-                            // Determine mime type (fallback to jpeg if missing, handle pdf)
                             let mime = file.type || "image/jpeg";
-                            // Basic mime type fix for common extensions if type is empty
+                            // Fallbacks for empty mime types
                             if (!mime && file.name.toLowerCase().endsWith('.pdf')) mime = 'application/pdf';
                             if (!mime && file.name.toLowerCase().match(/\.(jpg|jpeg)$/)) mime = 'image/jpeg';
                             if (!mime && file.name.toLowerCase().endsWith('.png')) mime = 'image/png';
@@ -608,8 +565,7 @@ window.app = {
 
                 const inlineDataParts = await Promise.all(filePromises);
 
-                // 2. BATCH API CALL (One request for all files)
-                // Note: Gemini API standard is text part first, then images/media
+                // 2. Batch Request to Gemini
                 const result = await window.app.generateWithFallback((modelId) => ({
                     contents: [{
                         parts: [
@@ -619,12 +575,11 @@ window.app = {
                     }]
                 }));
 
-                // 3. PARSE RESULT
+                // 3. Populate
                 let scannedText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
                 
                 if (!scannedText || scannedText.length < 5) throw new Error("OCR yielded little text");
 
-                // Replace existing text
                 document.getElementById('menu-text').value = scannedText.trim();
                 
             } catch (err) {
@@ -643,60 +598,66 @@ window.app = {
         }
     },
 
-    // --- AI ANALYSIS (GEMINI) ---
+    // --- INTERACTIVE LOADER LOGIC ---
     toggleLoader: (show, isScanning = false) => {
         const loader = document.getElementById('loader');
         const quoteBox = document.getElementById('loader-quote');
         const textEl = document.getElementById('loader-model-text');
         const storeNameEl = document.getElementById('loader-store-name');
-        const terminal = document.getElementById('loader-terminal');
+        const statusEl = document.getElementById('status-dynamic');
+        const progressEl = document.getElementById('loader-progress');
         
         if (show) {
             loader.style.display = 'flex';
             
-            // Personalize
             if(storeNameEl) storeNameEl.innerText = state.storeName || "Your Business";
+            if(textEl) textEl.innerText = `GEMINI 2.5 FLASH`;
 
-            // Reset Badge
-            if (textEl) {
-                textEl.innerText = `GEMINI 2.5 FLASH`; // Default start (Updated)
-            }
+            // Progress Animation Simulation
+            let progress = 0;
+            const statusSteps = isScanning 
+                ? ["Reading Files...", "Enhancing Image...", "Extracting Text...", "Finalizing OCR..."]
+                : ["Analyzing Menu...", "Benchmarking Prices...", "Identifying Whales...", "Cooking Deals...", "Polishing Strategy..."];
 
-            // START TIPS ROTATION (MERCHANT TIPS)
+            if (state.loaderInterval) clearInterval(state.loaderInterval);
+            
+            state.loaderInterval = setInterval(() => {
+                // Randomize progress increments to look natural
+                progress += Math.floor(Math.random() * 5) + 1;
+                if (progress > 95) progress = 95; // Wait for actual finish
+                
+                if (progressEl) progressEl.style.width = progress + "%";
+                
+                // Update text based on progress chunk
+                const stepIdx = Math.floor((progress / 100) * statusSteps.length);
+                if (statusEl && statusSteps[stepIdx]) statusEl.innerText = statusSteps[stepIdx];
+
+            }, 200);
+
+            // Merchant Tips Rotation
             const rotateTip = () => {
                 const tip = MERCHANT_TIPS[Math.floor(Math.random() * MERCHANT_TIPS.length)];
                 quoteBox.innerText = tip;
             };
-            rotateTip(); // Initial
+            rotateTip(); 
             if (state.tipInterval) clearInterval(state.tipInterval);
-            state.tipInterval = setInterval(rotateTip, 4000); // Change every 4s
-            
-            // START TERMINAL TEXT ANIMATION
-            let msgIdx = 0;
-            if (terminal) terminal.innerHTML = "";
-            if (state.terminalInterval) clearInterval(state.terminalInterval);
-            
-            const addLine = () => {
-                const msg = LOADING_MSGS[msgIdx % LOADING_MSGS.length];
-                const line = document.createElement('span');
-                line.className = 'term-line';
-                line.innerText = msg;
-                if(terminal) {
-                    terminal.innerHTML = ""; // Keep it clean, single line or append
-                    terminal.appendChild(line);
-                }
-                msgIdx++;
-            }
-            addLine();
-            state.terminalInterval = setInterval(addLine, 1500);
+            state.tipInterval = setInterval(rotateTip, 3000); 
 
         } else {
-            loader.style.display = 'none';
-            clearInterval(state.tipInterval);
-            clearInterval(state.terminalInterval);
+            // Finish Animation on Success
+            if (progressEl) progressEl.style.width = "100%";
+            if (statusEl) statusEl.innerText = "Complete!";
+            
+            setTimeout(() => {
+                loader.style.display = 'none';
+                clearInterval(state.tipInterval);
+                clearInterval(state.loaderInterval);
+                if (progressEl) progressEl.style.width = "0%";
+            }, 500);
         }
     },
 
+    // --- CREATIVE STRATEGY GENERATION ---
     startAnalysis: async (manualText) => {
         const inputMenu = manualText || document.getElementById('menu-text').value;
         if (!inputMenu || inputMenu.length < 3) return alert("Please enter menu items");
@@ -712,15 +673,15 @@ Business Context:
 Menu/Items:
 ${inputMenu}
 
-Goal: Create a retention strategy using psychological "Dark Patterns" (Ethical FOMO, Loss Aversion, Gamification, Decoy Effect).
+Goal: Create a retention strategy using psychological "Dark Patterns" (Ethical FOMO, Loss Aversion, Gamification).
 
 Requirements:
 1. 10 'Smart Deals': 
    - Combine items to push AOV ~20% higher than ₹${state.aov}.
-   - Use 'deal_price' = Sum of items (Full MRP). We do NOT discount cash. We give GOLD.
+   - Titles MUST be Creative, Trendy, or Festival-Themed (e.g., 'IPL Match Day Combo', 'Monsoon Magic', 'Date Night Special', 'Student Loot', 'Diwali Feast', 'Family Sunday Box', 'BFF Combo').
+   - 'deal_price' = Sum of items (Full MRP). We do NOT discount cash. We give GOLD.
    - Gold Value should be ~10-15% of deal_price.
-   - Titles should use triggers like "Limited Edition", "Weekend Loot", "Family Feast".
-   - CRITICAL: In deal description and product info, ONLY show real data and prices from the input menu. Do not invent items.
+   - 'items': A clear, comma-separated list of the actual menu items included in this combo (e.g. "2 Chicken Burgers, 2 Cokes, 1 Fries").
 
 2. 5 Gold Vouchers:
    - For retention. "Spend ₹X, Get ₹Y Gold Next Time".
@@ -739,8 +700,6 @@ Output JSON:
 }`;
 
         try {
-            // GENERATE WITH FALLBACK
-            // OPTIMIZED: Removed Google Search tool to speed up deal generation (was "AI Optimize")
             const result = await window.app.generateWithFallback((modelId) => ({
                 contents: [{ parts: [{ text: prompt }] }]
             }));
@@ -748,7 +707,6 @@ Output JSON:
             const candidate = result?.candidates?.[0];
             let jsonText = candidate?.content?.parts?.[0]?.text;
             
-            // Extract Grounding Metadata (Will be empty now since tool removed)
             const groundingChunks = candidate?.groundingMetadata?.groundingChunks || [];
             state.groundingSources = groundingChunks.map(c => c.web).filter(w => w);
 
@@ -769,7 +727,6 @@ Output JSON:
                 window.app.triggerCooldown();
             } else {
                 console.warn("AI failed. Using Smart Parse Fallback:", err);
-                // Simple Fallback logic...
                  const deals = [];
                  for(let i=0; i<10; i++) deals.push({title: "Offer "+(i+1), items: "Best Items", real_value: Number(state.aov), deal_price: Number(state.aov), gold: Math.round(state.aov*0.1)});
                  const vouchers = [{threshold: 1000, amount: 100, desc: "Visit Bonus"}];
@@ -778,242 +735,9 @@ Output JSON:
                  window.app.renderStrategy();
             }
         } finally {
-             // OPTIMIZED: Faster transition
-             setTimeout(() => window.app.toggleLoader(false), 100);
+             // Small delay to let the user see "Complete!"
+             setTimeout(() => window.app.toggleLoader(false), 500);
         }
-    },
-
-    renderStrategy: () => {
-        document.getElementById('strategy-input-panel').style.display = 'none';
-        const container = document.getElementById('strategy-results');
-        container.style.display = 'block';
-
-        const s = state.strategy;
-        const sources = state.groundingSources || [];
-
-        let html = '';
-
-        // --- REGENERATE BUTTON ---
-        html += `
-            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-                <button class="btn ripple-effect" style="width: auto; padding: 8px 16px; font-size: 11px; height: 32px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);" onclick="app.startAnalysis()">
-                    <i class="fa fa-sync-alt"></i> Regenerate
-                </button>
-            </div>
-        `;
-
-        // --- GROUNDING SOURCES ---
-        if (sources.length > 0) {
-            html += `
-                <div style="margin-bottom: 20px; padding: 15px; background: rgba(66, 133, 244, 0.1); border: 1px solid rgba(66, 133, 244, 0.3); border-radius: 12px; animation: fadeUp 0.5s ease;">
-                    <div style="font-size: 11px; font-weight: 800; color: #4285F4; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">
-                        <i class="fab fa-google"></i> Verified with Google Search
-                    </div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-            `;
-            sources.forEach(src => {
-                if (src.uri && src.title) {
-                    html += `
-                        <a href="${src.uri}" target="_blank" style="font-size: 11px; color: var(--text-main); text-decoration: none; background: var(--bg-surface); padding: 4px 10px; border-radius: 15px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 5px;">
-                            ${src.title} <i class="fa fa-external-link-alt" style="font-size: 9px; opacity: 0.5;"></i>
-                        </a>
-                    `;
-                }
-            });
-            html += `</div></div>`;
-        }
-        
-        // --- DEALS SECTION ---
-        html += `
-            <div style="display: flex; alignItems: center; gap: 8px; margin-bottom: 15px; margin-top: 10px;">
-                <div style="width: 24px; height: 24px; background: #FF5722; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
-                    <i class="fa fa-ticket-alt"></i>
-                </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">10 Exclusive Deals</span>
-            </div>
-            <div>
-        `;
-
-        s.deals.forEach((deal, idx) => {
-            const realVal = deal.real_value || deal.price || 0;
-            const price = deal.deal_price || deal.price || 0;
-            const gold = Math.max(30, deal.gold || Math.round(price * 0.10));
-            
-            const platformFee = Math.round(price * 0.10);
-            const gstOnFee = Math.round(platformFee * 0.18);
-            const net = price - gold - platformFee - gstOnFee;
-            
-            // Calculate starting percentages for display
-            const goldPct = Math.round((gold / price) * 100) || 10;
-            const feePct = 10;
-            const gstPct = 18;
-
-            html += `
-                <div class="deal-card deal-card-new stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${idx * 0.05}s;">
-                    <!-- HEADER -->
-                    <div class="deal-header">
-                        <div style="font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px;">
-                            DEAL #${idx+1}
-                        </div>
-                        <div class="deal-tag">
-                            GET ${window.app.fmt(gold)} GOLD
-                        </div>
-                    </div>
-
-                    <!-- BODY -->
-                    <div class="deal-body">
-                        <div contenteditable="true" style="font-size: 18px; font-weight: 800; margin-bottom: 6px; color: var(--text-main); line-height: 1.3;">${deal.title}</div>
-                        <div contenteditable="true" style="font-size: 13px; color: var(--text-sub); line-height: 1.4; opacity: 0.8;">${deal.items}</div>
-                        
-                        <div class="deal-price-box">
-                            <div>
-                                <div class="price-label">Customer Pays (Full MRP)</div>
-                                <div contenteditable="true" oninput="app.updateDealMath(this)" class="deal-price-edit" style="font-size: 20px; font-weight: 800; color: var(--brand); letter-spacing: -0.5px;">${window.app.fmt(price)}</div>
-                            </div>
-                            <div style="text-align: right;">
-                                <div class="price-label">Real Value</div>
-                                <div style="font-size: 14px; font-weight: 600; color: var(--text-sub);">${window.app.fmt(realVal)}</div>
-                            </div>
-                        </div>
-
-                        <div style="text-align: center; margin-top: 10px;">
-                            <div class="tap-hint">TAP TO EDIT MATH <i class="fa fa-chevron-down"></i></div>
-                        </div>
-                    </div>
-
-                    <!-- EDITABLE BREAKDOWN (PERCENTAGE RESTORED) -->
-                    <div class="math-breakdown">
-                        <div style="padding: 20px;">
-                            <div class="math-row">
-                                <div class="math-label">Customer Pays (Revenue)</div>
-                                <div class="math-val val-bill">${window.app.fmt(price)}</div>
-                            </div>
-
-                            <div class="math-row">
-                                <div class="math-label">
-                                    User Gets Gold (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gold">${goldPct}</span>%)
-                                </div>
-                                <div class="math-val val-gold" style="color:#FFB300;">- ${window.app.fmt(gold)}</div>
-                            </div>
-
-                            <div class="math-row">
-                                <div class="math-label">
-                                    Platform Fee (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-fee">${feePct}</span>%)
-                                </div>
-                                <div class="math-val val-fee" style="color:#FF5722;">- ${window.app.fmt(platformFee)}</div>
-                            </div>
-
-                            <div class="math-row">
-                                <div class="math-label">
-                                    GST on Fee (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gst">${gstPct}</span>%)
-                                </div>
-                                <div class="math-val val-gst" style="color:#FF5722;">- ${window.app.fmt(gstOnFee)}</div>
-                            </div>
-
-                            <div style="padding-top: 12px; display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
-                                <span style="font-size: 11px; color: #00E676; font-weight: 800; text-transform: uppercase;">Net Merchant Earning</span>
-                                <span class="val-net" style="font-weight: 800;">${window.app.fmt(net)}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-
-        html += `
-            </div>
-            
-            <!-- VOUCHERS -->
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;">
-                <div style="width: 24px; height: 24px; background: #FFC107; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: black; font-size: 12px;">
-                    <i class="fa fa-gift"></i>
-                </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Gold Vouchers (Retention)</span>
-            </div>
-            <div style="display: flex; overflow-x: auto; gap: 15px; padding-bottom: 20px; scroll-snap-type: x mandatory;">
-        `;
-
-        s.vouchers.forEach((v, i) => {
-            html += `
-                <div class="voucher-card-gold stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${0.5 + (i * 0.1)}s;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; opacity: 0.8;">VOUCHER</div>
-                        <div style="font-size: 10px; font-weight: 700; background: #000; color: #FFC107; padding: 2px 6px; border-radius: 4px;">GOLD</div>
-                    </div>
-                    <div style="text-align: center; padding: 15px 0;">
-                        <div contenteditable="true" style="font-size: 32px; font-weight: 900; letter-spacing: -1px;">${window.app.fmt(v.amount)}</div>
-                        <div style="font-size: 10px; font-weight: 700; margin-top: 5px; opacity: 0.7;">ON BILL > ${window.app.fmt(v.threshold)}</div>
-                    </div>
-                    <div contenteditable="true" style="font-size: 11px; text-align: center; font-weight: 600; opacity: 0.8; line-height: 1.4;">${v.desc}</div>
-                </div>
-            `;
-        });
-
-        html += `
-            </div>
-            
-            <!-- PHYSICAL REPEAT CARD -->
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;">
-                <div style="width: 24px; height: 24px; background: #4CAF50; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
-                    <i class="fa fa-credit-card"></i>
-                </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Physical Repeat Business Card</span>
-            </div>
-            
-            <div class="repeat-card-wrapper stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: 1s;">
-                <!-- VISUAL CARD FRONT -->
-                <div class="repeat-card-visual">
-                    <div class="rc-logo-corner"><i class="fa fa-infinity"></i></div>
-                    <div>
-                        <div class="rc-chip"></div>
-                        <div class="rc-store-name">${state.storeName || "STORE NAME"}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.6); margin-bottom: 4px;">
-                             ${s.repeatCard.card_title || "Platinum Club"}
-                        </div>
-                        <div class="rc-offer-main">
-                             Get <span class="gold-text">${window.app.fmt(s.repeatCard.next_visit_gold_reward)} Gold</span> on every visit
-                        </div>
-                    </div>
-                </div>
-
-                <!-- EDIT PANEL -->
-                <div class="math-breakdown">
-                    <div style="padding: 20px;">
-                        <div style="font-size: 11px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 15px;">Physical Card Logic</div>
-                        
-                        <div class="rc-input-row">
-                            <span>Trigger Condition</span>
-                            <div class="rc-val-edit" contenteditable="true" style="width: 120px;">${s.repeatCard.trigger}</div>
-                        </div>
-
-                        <div class="rc-input-row">
-                            <span>Gold Reward Amount</span>
-                            <div class="rc-val-edit inp-rc-gold" contenteditable="true" oninput="app.updateRepeatCard()">${window.app.fmt(s.repeatCard.next_visit_gold_reward)}</div>
-                        </div>
-
-                        <div class="rc-input-row">
-                            <span>Redeem Min Bill</span>
-                            <div class="rc-val-edit" contenteditable="true">${window.app.fmt(s.repeatCard.next_visit_min_spend)}</div>
-                        </div>
-
-                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-sub); line-height: 1.4;">
-                            <i class="fa fa-print"></i> <b>Print this card.</b> Hand it to customers who spend above the trigger amount. They keep the card in their wallet and redeem Gold on every subsequent visit.
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <button class="btn btn-brand ripple-effect" style="margin-top: 40px;" onclick="app.shareStrategy()">
-                <i class="fa fa-file-pdf"></i> Download Strategy PDF
-            </button>
-             <button class="btn ripple-effect" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-sub); margin-bottom: 50px;" onclick="location.reload()">
-                Reset Strategy
-            </button>
-        `;
-
-        container.innerHTML = html;
     }
 };
 
@@ -1022,4 +746,4 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', window.app.init);
 } else {
     window.app.init();
-    }
+}
