@@ -12,6 +12,9 @@
     
     <title>Discount Dost</title>
     
+    <!-- PUTER.JS (Free AI Fallback) -->
+    <script src="https://js.puter.com/v2/"></script>
+    
     <!-- FAVICON -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjkwIiBmaWxsPSIjMDAwMDAwIi8+PHBhdGggZD0iTTE2NSAxMTAgSCAyNjUgQyAzNTUgMTEwIDQxNSAxNzUgNDE1IDI1NiBDIDQxNSAzMzcgMzU1IDQwMiAyNjUgNDAyIEggMTY1IFYgMTEwIFogTSAyMjUgMTcwIFYgMzQyIEggMjY1IEMgMzE1IDM0MiAzNTUgMzA1IDM1NSAyNTYgQyAzNTUgMjA3IDMxNSAxNzAgMjY1IDE3MCBVIDIyNSBaIiBmaWxsPSIjRkZDMTA3Ii8+PC9zdmc+">
     <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjkwIiBmaWxsPSIjMDAwMDAwIi8+PHBhdGggZD0iTTE2NSAxMTAgSCAyNjUgQyAzNTUgMTEwIDQxNSAxNzUgNDE1IDI1NiBDIDQxNSAzMzcgMzU1IDQwMiAyNjUgNDAyIEggMTY1IFYgMTEwIFogTSAyMjUgMTcwIFYgMzQyIEggMjY1IEMgMzE1IDM0MiAzNTUgMzA1IDM1NSAyNTYgQyAzNTUgMjA3IDMxNSAxNzAgMjY1IDE3MCBVIDIyNSBaIiBmaWxsPSIjRkZDMTA3Ii8+PC9zdmc+">
@@ -378,11 +381,6 @@
         .pulse-red { color: var(--danger); animation: pulse-red 1s infinite; }
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(255, 61, 0, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(255, 61, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 61, 0, 0); } }
 
-        /* KEY MANAGER MODEL INFO */
-        .model-info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--border-color); font-size: 11px; }
-        .model-name { font-weight: 700; color: var(--text-main); }
-        .model-limit { color: var(--text-sub); }
-
         /* ERROR MODAL */
         .error-icon-box { width: 60px; height: 60px; background: rgba(255, 61, 0, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto; color: var(--danger); font-size: 24px; animation: shake 0.5s ease; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
@@ -643,32 +641,25 @@
         <div class="modal-overlay" id="key-manager-modal" style="display: none;" onclick="document.getElementById('key-manager-modal').style.display='none'">
             <div class="modal-box" onclick="event.stopPropagation()">
                 <div class="hf-badge" style="background:#FFC107; color:#000;">KEY MANAGER</div>
-                <h3 style="margin:0 0 10px 0; font-weight: 800;">Manage API Keys</h3>
+                <h3 style="margin:0 0 10px 0; font-weight: 800;">Manage AI Keys</h3>
                 <p style="font-size:13px; color:var(--text-sub); margin-bottom:20px;">Add keys to rotate. AI chooses the best available model.</p>
                 
                 <div id="key-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
                     <!-- JS Injects Inputs Here -->
                 </div>
 
-                <!-- NEW MODEL INTEL SECTION -->
-                <div style="background: var(--bg-input); border-radius: 12px; padding: 15px; text-align: left; margin-bottom: 20px;">
-                    <div style="font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 8px;">MODEL INTELLIGENCE</div>
-                    
-                    <div class="model-info-row">
-                        <span class="model-name">Gemini 1.5 Flash</span>
-                        <span class="model-limit">~15 RPM (High Speed)</span>
+                <!-- NEW HUGGING FACE SECTION -->
+                <div style="background: var(--bg-input); border-radius: 12px; padding: 15px; text-align: left; margin-bottom: 20px; border: 1px solid var(--border-color);">
+                    <div style="font-size: 10px; font-weight: 800; color: #F8D210; text-transform: uppercase; margin-bottom: 8px;">
+                        <i class="fa fa-robot"></i> HUGGING FACE FALLBACK
                     </div>
-                    <div class="model-info-row">
-                        <span class="model-name">Gemini 2.5 Flash</span>
-                        <span class="model-limit">Experimental (Std Speed)</span>
-                    </div>
-                     <div class="model-info-row" style="border-bottom: none;">
-                        <span class="model-name">Gemini 3 Pro</span>
-                        <span class="model-limit">~2 RPM (High IQ)</span>
-                    </div>
+                    <input type="text" id="hf-key-input" class="cat-trigger" 
+                        placeholder="HF Read Access Token (hf_...)" 
+                        style="padding: 12px; font-size: 13px; border:1px solid var(--border-color); width:100%;">
+                    <div style="font-size: 10px; color: var(--text-sub); margin-top: 5px;">Used only if Gemini limits are exhausted.</div>
                 </div>
 
-                <button class="btn btn-brand ripple-effect" onclick="window.app.saveKeys()">Save Keys</button>
+                <button class="btn btn-brand ripple-effect" onclick="window.app.saveKeys()">Save All Keys</button>
             </div>
         </div>
 
