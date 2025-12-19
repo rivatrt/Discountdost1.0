@@ -3,7 +3,7 @@ const CATEGORIES = [
     { id: 'Restaurant', icon: 'fa-utensils', label: 'Restaurant', brandRef: "Swiggy/Zomato top brands like Domino's" },
     { id: 'Cafe', icon: 'fa-coffee', label: 'Cafe', brandRef: "Starbucks or Third Wave Coffee" },
     { id: 'Retail', icon: 'fa-shopping-bag', label: 'Retail', brandRef: "Westside or H&M" },
-    { id: 'Salon', icon: 'fa-cut', label: 'Salon', brandRef: "Lakme or Toni & Guy" }, // NEW ADDITION
+    { id: 'Salon', icon: 'fa-cut', label: 'Salon', brandRef: "Lakme or Toni & Guy" }, 
     { id: 'Electronics', icon: 'fa-mobile-alt', label: 'Electronics', brandRef: "Croma or Reliance Digital" },
     { id: 'Grocery', icon: 'fa-carrot', label: 'Grocery', brandRef: "Zepto or Blinkit" },
     { id: 'Clothing', icon: 'fa-tshirt', label: 'Fashion', brandRef: "Zara or Myntra" },
@@ -31,7 +31,8 @@ const state = {
     aov: "",
     discount: "",
     isDark: true,
-    apiKeys: [], // Now array
+    apiKeys: [], 
+    keyUsage: {}, // Tracks RPM/Daily limits per key
     strategy: null,
     groundingSources: [],
     loaderInterval: null,
@@ -42,26 +43,73 @@ const state = {
     cooldownTimer: null
 };
 
-// OPTIMIZED: Prioritize Flash models for speed
+// MODEL PRIORITY: Flash 2.5 -> Flash 1.5 -> Pro (Last Resort)
 const AI_MODELS = [
-    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', tier: 'High Speed' },
-    { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', tier: 'Standard' },
-    { id: 'gemini-3-pro-preview', label: 'Gemini 3 Pro', tier: 'High Intelligence' }
+    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', rpm: 15, rpd: 1500 },
+    { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', rpm: 15, rpd: 1500 },
+    { id: 'gemini-1.5-pro',   label: 'Gemini 1.5 Pro',   rpm: 2,  rpd: 50   }
 ];
 
-// Load Keys from Storage
+// --- INITIALIZATION ---
 try {
-    const stored = localStorage.getItem('discount_dost_gemini_keys');
-    if (stored) {
-        state.apiKeys = JSON.parse(stored);
-    } else {
-        // Legacy fallback
+    const storedKeys = localStorage.getItem('discount_dost_gemini_keys');
+    if (storedKeys) state.apiKeys = JSON.parse(storedKeys);
+    else {
         const single = localStorage.getItem('discount_dost_gemini_key');
         if (single) state.apiKeys = [single];
     }
+
+    const storedUsage = localStorage.getItem('discount_dost_key_usage');
+    if (storedUsage) state.keyUsage = JSON.parse(storedUsage);
+
 } catch (e) {
-    console.warn("LocalStorage access denied");
+    console.warn("Storage access error");
 }
+
+// --- USAGE TRACKER ---
+window.tracker = {
+    getUsage: (key) => {
+        if (!state.keyUsage[key]) {
+            state.keyUsage[key] = { 
+                day: new Date().toDateString(), 
+                dailyCount: 0, 
+                minuteStart: Date.now(), 
+                minuteCount: 0 
+            };
+        }
+        const u = state.keyUsage[key];
+        
+        // Reset Minute
+        if (Date.now() - u.minuteStart > 60000) {
+            u.minuteStart = Date.now();
+            u.minuteCount = 0;
+        }
+        
+        // Reset Day
+        if (u.day !== new Date().toDateString()) {
+            u.day = new Date().toDateString();
+            u.dailyCount = 0;
+        }
+
+        return u;
+    },
+    
+    increment: (key) => {
+        const u = window.tracker.getUsage(key);
+        u.minuteCount++;
+        u.dailyCount++;
+        state.keyUsage[key] = u;
+        localStorage.setItem('discount_dost_key_usage', JSON.stringify(state.keyUsage));
+    },
+
+    isRateLimited: (key, modelRPM, modelRPD) => {
+        const u = window.tracker.getUsage(key);
+        // Add buffer (-1) to be safe
+        if (u.minuteCount >= modelRPM - 1) return "RPM Limit Hit";
+        if (u.dailyCount >= modelRPD - 5) return "Daily Limit Hit";
+        return false;
+    }
+};
 
 // --- APP CONTROLLER ---
 window.app = {
@@ -71,91 +119,27 @@ window.app = {
             window.app.renderCategoryGrid();
             window.app.renderManualInputs();
             
-            // Handle Native Back Button / Swipe
             window.history.replaceState({page: 1}, "", "");
             window.addEventListener('popstate', (event) => {
-                if (event.state && event.state.page) {
-                    window.app.renderPage(event.state.page);
-                }
+                if (event.state && event.state.page) window.app.renderPage(event.state.page);
             });
 
-            // Initial Key Check
             if (state.apiKeys.length > 0) {
                 const modal = document.getElementById('api-key-modal');
                 if(modal) modal.style.display = 'none';
             }
 
-            // Input Listeners
             ['store', 'visits', 'aov', 'discount'].forEach(id => {
                 const el = document.getElementById(`inp-${id}`);
-                if(el) {
-                    el.addEventListener('input', (e) => {
-                        state[id === 'store' ? 'storeName' : id] = e.target.value;
-                    });
-                }
+                if(el) el.addEventListener('input', (e) => state[id === 'store' ? 'storeName' : id] = e.target.value);
             });
 
-            // Service Worker
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./sw.js')
-                    .catch(e => console.log('SW Registration Failed:', e));
+            // Handle Key Manager
+            if (document.getElementById('key-manager-modal')) {
+                // Pre-render bars logic done in openKeyManager
             }
 
-            // --- NATIVE INSTALL LOGIC ---
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault(); 
-                state.installPrompt = e;
-                const btn = document.getElementById('install-btn');
-                if (btn) btn.style.display = 'flex'; 
-            });
-
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
-            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-            
-            if (isIOS && !isStandalone) {
-                const btn = document.getElementById('install-btn');
-                if (btn) btn.style.display = 'flex';
-            }
-
-            window.addEventListener('appinstalled', () => {
-                state.installPrompt = null;
-                const btn = document.getElementById('install-btn');
-                if (btn) btn.style.display = 'none';
-            });
-
-        } catch (err) {
-            console.error("Init error:", err);
-        }
-    },
-
-    installPWA: async () => {
-        if (state.installPrompt) {
-            state.installPrompt.prompt();
-            const { outcome } = await state.installPrompt.userChoice;
-            if (outcome === 'accepted') {
-                state.installPrompt = null;
-                const btn = document.getElementById('install-btn');
-                if (btn) btn.style.display = 'none';
-            }
-            return;
-        }
-
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
-        if (isIOS) {
-             const modal = document.getElementById('install-help-modal');
-             const iconDiv = modal.querySelector('.modal-icon');
-             const title = modal.querySelector('h3');
-             const desc = modal.querySelector('p');
-             
-             iconDiv.innerHTML = '<i class="fab fa-apple"></i>';
-             title.innerText = "Install on iOS";
-             desc.innerHTML = `1. Tap the <b>Share</b> button <i class="fa fa-share-square"></i><br>2. Scroll down & select <br><b>"Add to Home Screen"</b> <i class="fa fa-plus-square"></i>`;
-             modal.style.display = 'flex';
-        }
-    },
-    
-    closeInstallModal: () => {
-        document.getElementById('install-help-modal').style.display = 'none';
+        } catch (err) { console.error("Init error:", err); }
     },
 
     // --- KEY MANAGER ---
@@ -164,12 +148,39 @@ window.app = {
         const list = document.getElementById('key-list');
         list.innerHTML = '';
         
+        // RENDER INPUTS
         for (let i = 0; i < 5; i++) {
             const val = state.apiKeys[i] || '';
+            
+            // Get Usage Stats for this key if it exists
+            let statsHtml = '';
+            if (val.length > 10) {
+                const u = window.tracker.getUsage(val);
+                const rpmPct = (u.minuteCount / 15) * 100;
+                const dayPct = (u.dailyCount / 1500) * 100;
+                
+                statsHtml = `
+                    <div style="margin-top:4px; margin-bottom:12px; font-size:10px; color:var(--text-sub);">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                            <span>RPM (Speed): ${u.minuteCount}/15</span>
+                            <span>Daily: ${u.dailyCount}/1500</span>
+                        </div>
+                        <div style="height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; display:flex;">
+                            <div style="width:${rpmPct}%; background:${rpmPct > 90 ? '#FF3D00' : '#00E676'}; height:100%;"></div>
+                            <div style="width:2px; background:#000;"></div>
+                            <div style="width:${dayPct}%; background:#FFC107; height:100%; opacity:0.7;"></div>
+                        </div>
+                    </div>
+                `;
+            }
+
             list.innerHTML += `
-                <input type="text" id="key-slot-${i}" class="cat-trigger" 
-                    placeholder="Gemini API Key ${i+1}" value="${val}" 
-                    style="padding: 12px; font-size: 14px;">
+                <div>
+                    <input type="text" id="key-slot-${i}" class="cat-trigger" 
+                        placeholder="Key ${i+1} (Auto-Switch Slot)" value="${val}" 
+                        style="padding: 12px; font-size: 13px; border:1px solid var(--border-color);">
+                    ${statsHtml}
+                </div>
             `;
         }
         modal.style.display = 'flex';
@@ -189,12 +200,11 @@ window.app = {
             localStorage.setItem('discount_dost_gemini_keys', JSON.stringify(newKeys));
             document.getElementById('key-manager-modal').style.display = 'none';
             document.getElementById('api-key-modal').style.display = 'none';
-            alert(`Saved ${newKeys.length} keys.`);
         } else {
-            alert("Please enter at least one valid key.");
+            alert("Enter at least one valid key.");
         }
     },
-
+    
     saveApiKey: () => {
         const input = document.getElementById('gemini-key-input');
         if (!input) return;
@@ -203,11 +213,81 @@ window.app = {
             state.apiKeys = [key];
             localStorage.setItem('discount_dost_gemini_keys', JSON.stringify(state.apiKeys));
             document.getElementById('api-key-modal').style.display = 'none';
-        } else {
-            alert("Please enter a valid API key");
         }
     },
 
+    // --- CORE GENERATION LOGIC ---
+    generateWithFallback: async (payloadFactory) => {
+        const activeModelBadge = document.getElementById('loader-active-model');
+        const modelNameText = document.getElementById('model-name-text');
+        
+        // 1. Validation
+        if (!state.apiKeys || state.apiKeys.length === 0) {
+             window.app.showError("No Keys Found", "Please add a Gemini API Key.");
+             throw new Error("No API Keys");
+        }
+
+        if(activeModelBadge) activeModelBadge.style.display = 'inline-flex';
+
+        // 2. Loop through Models (Best -> Fastest -> Fallback)
+        for (let m = 0; m < AI_MODELS.length; m++) {
+            const model = AI_MODELS[m];
+            if(modelNameText) modelNameText.innerText = model.label; // Show user which model
+
+            // 3. Loop through Keys (Rotation)
+            for (let k = 0; k < state.apiKeys.length; k++) {
+                const currentKey = state.apiKeys[k];
+
+                // Check Local Limits BEFORE calling
+                const limitReason = window.tracker.isRateLimited(currentKey, model.rpm, model.rpd);
+                if (limitReason) {
+                    console.log(`Skipping Key ${k+1} due to ${limitReason}`);
+                    continue; // Skip this key, try next
+                }
+
+                try {
+                    const body = payloadFactory(model.id);
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${currentKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+
+                    // 4. Handle Quota Errors specially
+                    if (response.status === 429 || response.status === 503) {
+                        console.warn(`Key ${k+1} exhausted on ${model.id}. Rotating...`);
+                        // Artificially max out the counter so we skip it next time immediately
+                        const u = window.tracker.getUsage(currentKey);
+                        u.minuteCount = 100; 
+                        continue; // Try next key
+                    }
+
+                    if (!response.ok) {
+                         // Some other error (400, 500)
+                         console.warn(`Model ${model.id} error. Downgrading...`);
+                         break; // Break Key loop to try NEXT MODEL
+                    }
+
+                    const data = await response.json();
+                    
+                    // Success! Track usage and return
+                    window.tracker.increment(currentKey);
+                    return data; 
+
+                } catch (e) {
+                    console.warn(`Network fail Key ${k+1}.`);
+                    continue;
+                }
+            }
+            // If all keys failed for this model, loop continues to NEXT MODEL
+        }
+        
+        // If we get here, EVERYTHING failed.
+        window.app.showError("All Systems Busy", "We tried all models and keys but they are busy. Please wait 1 minute.");
+        throw new Error("QuotaExhausted");
+    },
+
+    // --- OTHER UI FUNCTIONS ---
     toggleTheme: () => {
         state.isDark = !state.isDark;
         document.body.classList.toggle('light-mode');
@@ -232,16 +312,13 @@ window.app = {
 
     renderPage: (page) => {
         state.page = page;
-        
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         const navItem = document.getElementById(`nav-${page}`);
         if(navItem) navItem.classList.add('active');
-        
         document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
         const targetPage = page === 1 ? 'view-input' : page === 2 ? 'view-results' : 'view-strategy';
         const pageEl = document.getElementById(targetPage);
         if(pageEl) pageEl.classList.add('active');
-
         const titleEl = document.getElementById('page-title');
         if (page === 1) titleEl.innerHTML = "Business<br>Details";
         else if (page === 2) {
@@ -251,17 +328,13 @@ window.app = {
             titleEl.innerHTML = "Growth<br>Strategy";
             document.getElementById('strategy-store-name').innerText = state.storeName || "your store";
         }
-
         const backBtn = document.getElementById('back-btn');
         if(backBtn) backBtn.classList.toggle('visible', page > 1);
-        
         const scrollContainer = document.getElementById('scroll-container');
         if(scrollContainer) scrollContainer.scrollTop = 0;
     },
 
-    goBack: () => {
-        window.history.back();
-    },
+    goBack: () => window.history.back(),
 
     validateAndNav: (page) => {
         if (!state.visits || !state.aov || !state.discount) {
@@ -288,62 +361,47 @@ window.app = {
         el.classList.toggle('expanded');
     },
 
-    shareStrategy: () => {
-        window.print();
-    },
+    shareStrategy: () => window.print(),
 
     updateDealMath: (el) => {
         const card = el.closest('.deal-card');
         if (!card) return;
-
         const getNum = (sel) => {
             const e = card.querySelector(sel);
             return e ? parseFloat(e.innerText.replace(/[^0-9.]/g, '')) || 0 : 0;
         }
-
         let price = getNum('.deal-price-edit');
         let goldPct = getNum('.pct-gold');
         let feePct = getNum('.pct-fee');
         let gstPct = getNum('.pct-gst'); 
-
         const gold = Math.round(price * (goldPct / 100));
         const fee = Math.round(price * (feePct / 100));
         const gst = Math.round(fee * (gstPct / 100));
         const net = price - gold - fee - gst;
-
         const setTxt = (sel, val, isNeg=false) => {
             const e = card.querySelector(sel);
             if(e) e.innerText = (isNeg ? "- " : "") + window.app.fmt(val);
         }
-
         setTxt('.val-gold', gold, true);
         setTxt('.val-fee', fee, true);
         setTxt('.val-gst', gst, true);
         setTxt('.val-net', net);
         setTxt('.val-bill', price);
-        
         const tag = card.querySelector('.deal-tag');
         if(tag) tag.innerText = `GET ${window.app.fmt(gold)} GOLD`;
     },
 
     recalcItemTotal: (inputEl) => {
-        // Find the specific deal card
         const card = inputEl.closest('.deal-card');
         if(!card) return;
-
-        // Sum up all item prices
         let totalReal = 0;
         const itemRows = card.querySelectorAll('.item-row-price');
         itemRows.forEach(row => {
             const val = parseFloat(row.innerText.replace(/[^0-9.]/g, '')) || 0;
             totalReal += val;
         });
-
-        // Update the Real Value Display
         const realValDisplay = card.querySelector('.real-value-display');
         if(realValDisplay) realValDisplay.innerText = window.app.fmt(totalReal);
-
-        // Update the Hidden Calculation Reference if needed, or just trigger main math
         window.app.updateDealMath(inputEl); 
     },
 
@@ -358,18 +416,14 @@ window.app = {
         const v = Number(state.visits);
         const a = Number(state.aov);
         const d = Number(state.discount);
-        
         const lossPerBill = a * (d / 100);
         const goldVoucherValue = lossPerBill * 0.5;
         const costPerBillGold = (goldVoucherValue * 1.177);
         const savingsPerBill = lossPerBill - costPerBillGold;
-
         const discountDaily = lossPerBill * v;
         const goldDaily = costPerBillGold * v;
-
         const discountMonthly = discountDaily * 30;
         const goldMonthly = goldDaily * 30;
-
         const discountYearly = discountDaily * 365;
         const goldYearly = goldDaily * 365;
         const savingsYearly = savingsPerBill * v * 365;
@@ -460,50 +514,14 @@ window.app = {
     getFallbackMenu: (catId) => {
         const aov = Number(state.aov) || 500;
         const dictionaries = {
-            'Cafe': [
-                {n: "Cappuccino", p: 0.4}, {n: "Cold Brew", p: 0.5}, {n: "Croissant", p: 0.45}, 
-                {n: "Bagel Cream Cheese", p: 0.5}, {n: "Club Sandwich", p: 0.7}, {n: "Hazelnut Latte", p: 0.6}
-            ],
-            'Restaurant': [
-                {n: "Butter Chicken", p: 0.8}, {n: "Dal Makhani", p: 0.6}, {n: "Garlic Naan", p: 0.15}, 
-                {n: "Paneer Tikka", p: 0.55}, {n: "Veg Biryani", p: 0.5}, {n: "Tandoori Platter", p: 1.2}
-            ],
-            'Retail': [
-                {n: "Cotton Tee", p: 0.5}, {n: "Denim Jeans", p: 1.5}, {n: "Summer Dress", p: 1.2}, 
-                {n: "Sneakers", p: 2.0}, {n: "Jacket", p: 2.5}
-            ],
-            'Grocery': [
-                {n: "Fresh Atta 5kg", p: 0.4}, {n: "Premium Rice", p: 0.8}, {n: "Cooking Oil", p: 1.0}, 
-                {n: "Dry Fruits Pack", p: 1.2}, {n: "Cleaning Kit", p: 0.5}
-            ],
-            'Salon': [
-                 {n: "Haircut", p: 0.5}, {n: "Facial", p: 1.5}, {n: "Manicure", p: 0.8}, {n: "Pedicure", p: 0.9}
-            ]
+            'Cafe': [{n: "Cappuccino", p: 0.4}, {n: "Cold Brew", p: 0.5}, {n: "Croissant", p: 0.45}, {n: "Bagel Cream Cheese", p: 0.5}],
+            'Restaurant': [{n: "Butter Chicken", p: 0.8}, {n: "Dal Makhani", p: 0.6}, {n: "Garlic Naan", p: 0.15}, {n: "Paneer Tikka", p: 0.55}],
+            'Retail': [{n: "Cotton Tee", p: 0.5}, {n: "Denim Jeans", p: 1.5}, {n: "Summer Dress", p: 1.2}, {n: "Sneakers", p: 2.0}],
+            'Grocery': [{n: "Fresh Atta 5kg", p: 0.4}, {n: "Premium Rice", p: 0.8}, {n: "Cooking Oil", p: 1.0}, {n: "Dry Fruits Pack", p: 1.2}],
+            'Salon': [{n: "Haircut", p: 0.5}, {n: "Facial", p: 1.5}, {n: "Manicure", p: 0.8}, {n: "Pedicure", p: 0.9}]
         };
         const items = dictionaries[catId] || dictionaries['Restaurant'];
         return items.map(i => `${i.n} ${Math.round(aov * i.p)}`).join('\n');
-    },
-
-    triggerCooldown: () => {
-        window.app.toggleLoader(false);
-        const overlay = document.getElementById('cooldown-overlay');
-        const timerEl = document.getElementById('cooldown-timer');
-        if(!overlay) return;
-
-        overlay.style.display = 'flex';
-        let timeLeft = 60;
-        timerEl.innerText = timeLeft;
-
-        if (state.cooldownTimer) clearInterval(state.cooldownTimer);
-        
-        state.cooldownTimer = setInterval(() => {
-            timeLeft--;
-            timerEl.innerText = timeLeft;
-            if (timeLeft <= 0) {
-                clearInterval(state.cooldownTimer);
-                overlay.style.display = 'none';
-            }
-        }, 1000);
     },
 
     showError: (title, desc) => {
@@ -514,92 +532,28 @@ window.app = {
         modal.style.display = 'flex';
     },
 
-    generateWithFallback: async (payloadFactory) => {
-        const activeModelBadge = document.getElementById('loader-active-model');
-        const modelNameText = document.getElementById('model-name-text');
-        
-        const keysToTry = state.apiKeys.length > 0 ? state.apiKeys : [];
-        if (keysToTry.length === 0) {
-             window.app.showError("Missing API Key", "Please add a free Google Gemini API Key to continue.");
-             throw new Error("No API Keys");
-        }
-
-        if(activeModelBadge) activeModelBadge.style.display = 'inline-flex';
-
-        for (let m = 0; m < AI_MODELS.length; m++) {
-            const model = AI_MODELS[m];
-            
-            // UPDATE LOADER UI TO SHOW MODEL
-            if(modelNameText) modelNameText.innerText = model.label;
-
-            for (let k = 0; k < keysToTry.length; k++) {
-                const currentKey = keysToTry[k];
-
-                try {
-                    const body = payloadFactory(model.id);
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${currentKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(body)
-                    });
-
-                    if (response.status === 429 || response.status === 503) {
-                        console.warn(`Model ${model.id} with Key ${k+1} exhausted.`);
-                        continue;
-                    }
-
-                    if (!response.ok) {
-                         const err = await response.text();
-                         console.warn(`Model ${model.id} error:`, err);
-                         continue;
-                    }
-
-                    const data = await response.json();
-                    return data; 
-
-                } catch (e) {
-                    console.warn(`Network error with Key ${k+1}`);
-                    continue;
-                }
-            }
-        }
-        
-        window.app.showError("AI Busy / Quota Limit", "All your free keys are currently busy or exhausted. Please wait a minute or add more keys.");
-        throw new Error("QuotaExhausted");
-    },
-
-    // --- PARALLEL FILE SCANNING ---
     handleFile: async (input) => {
         if (input.files && input.files.length > 0) {
             const files = Array.from(input.files);
-            
             if (files.length > 10) return alert("Please upload a maximum of 10 files at a time.");
-
             window.app.toggleLoader(true, true); 
-
             try {
-                // 1. Convert all files to Base64 in Parallel
                 const filePromises = files.map(file => {
                     return new Promise((resolve, reject) => {
                         const reader = new FileReader();
                         reader.onload = (e) => {
                             const base64Data = e.target.result.split(',')[1];
                             let mime = file.type || "image/jpeg";
-                            // Fallbacks for empty mime types
                             if (!mime && file.name.toLowerCase().endsWith('.pdf')) mime = 'application/pdf';
                             if (!mime && file.name.toLowerCase().match(/\.(jpg|jpeg)$/)) mime = 'image/jpeg';
                             if (!mime && file.name.toLowerCase().endsWith('.png')) mime = 'image/png';
-                            
                             resolve({ inline_data: { mime_type: mime, data: base64Data } });
                         };
                         reader.onerror = reject;
                         reader.readAsDataURL(file);
                     });
                 });
-
                 const inlineDataParts = await Promise.all(filePromises);
-
-                // 2. Batch Request to Gemini
                 const result = await window.app.generateWithFallback((modelId) => ({
                     contents: [{
                         parts: [
@@ -608,18 +562,11 @@ window.app = {
                         ]
                     }]
                 }));
-
-                // 3. Populate
                 let scannedText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                
                 if (!scannedText || scannedText.length < 5) throw new Error("OCR yielded little text");
-
                 document.getElementById('menu-text').value = scannedText.trim();
-                
             } catch (err) {
-                if (err.message === "QuotaExhausted") {
-                     // Handled by generateWithFallback
-                } else {
+                if (err.message !== "QuotaExhausted" && err.message !== "No API Keys") {
                     window.app.showError("Scan Failed", "Could not read files. Please try clearer images or a text PDF.");
                     const fallbackData = window.app.getFallbackMenu(state.category.id);
                     document.getElementById('menu-text').value = fallbackData;
@@ -631,7 +578,6 @@ window.app = {
         }
     },
 
-    // --- INTERACTIVE LOADER LOGIC ---
     toggleLoader: (show, isScanning = false) => {
         const loader = document.getElementById('loader');
         const quoteBox = document.getElementById('loader-quote');
@@ -642,32 +588,20 @@ window.app = {
         
         if (show) {
             loader.style.display = 'flex';
-            if(activeModelBadge) activeModelBadge.style.display = 'none'; // Hide initially until loop starts
-            
+            if(activeModelBadge) activeModelBadge.style.display = 'none'; 
             if(storeNameEl) storeNameEl.innerText = state.storeName || "Your Business";
-
-            // Progress Animation Simulation
             let progress = 0;
             const statusSteps = isScanning 
                 ? ["Reading Files...", "Enhancing Image...", "Extracting Text...", "Finalizing OCR..."]
                 : ["Analyzing Menu...", "Benchmarking Prices...", "Identifying Whales...", "Cooking Deals...", "Polishing Strategy..."];
-
             if (state.loaderInterval) clearInterval(state.loaderInterval);
-            
             state.loaderInterval = setInterval(() => {
-                // Randomize progress increments to look natural
                 progress += Math.floor(Math.random() * 5) + 1;
-                if (progress > 95) progress = 95; // Wait for actual finish
-                
+                if (progress > 95) progress = 95;
                 if (progressEl) progressEl.style.width = progress + "%";
-                
-                // Update text based on progress chunk
                 const stepIdx = Math.floor((progress / 100) * statusSteps.length);
                 if (statusEl && statusSteps[stepIdx]) statusEl.innerText = statusSteps[stepIdx];
-
             }, 200);
-
-            // Merchant Tips Rotation
             const rotateTip = () => {
                 const tip = MERCHANT_TIPS[Math.floor(Math.random() * MERCHANT_TIPS.length)];
                 quoteBox.innerText = tip;
@@ -675,12 +609,9 @@ window.app = {
             rotateTip(); 
             if (state.tipInterval) clearInterval(state.tipInterval);
             state.tipInterval = setInterval(rotateTip, 3000); 
-
         } else {
-            // Finish Animation on Success
             if (progressEl) progressEl.style.width = "100%";
             if (statusEl) statusEl.innerText = "Complete!";
-            
             setTimeout(() => {
                 loader.style.display = 'none';
                 clearInterval(state.tipInterval);
@@ -690,74 +621,39 @@ window.app = {
         }
     },
 
-    // --- CREATIVE STRATEGY GENERATION ---
     startAnalysis: async (manualText) => {
-        // 1. QUICK MODE CHECK
         const isQuickMode = document.getElementById('skip-details-toggle')?.checked;
-        
-        // If NOT Quick Mode, validate Page 1 inputs
         if (!isQuickMode && (!state.visits || !state.aov)) {
             alert("Please enter Business Details on Page 1 first, or enable 'Quick Mode' toggle.");
             window.app.navTo(1);
             return;
         }
-
         const inputMenu = manualText || document.getElementById('menu-text').value;
         if (!inputMenu || inputMenu.length < 3) return alert("Please enter menu items");
 
         window.app.toggleLoader(true);
-
-        // 2. CONTEXT AWARE DATE
         const today = new Date();
         const dateStr = today.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        
-        // 3. DEFAULTS FOR QUICK MODE
-        const currentAOV = isQuickMode ? 500 : state.aov; // Fallback AOV if skipping details
-        const currentVisits = isQuickMode ? 50 : state.visits;
+        const currentAOV = isQuickMode ? 500 : state.aov; 
         const currentDiscount = isQuickMode ? 10 : state.discount;
         const storeName = state.storeName || "My Store";
 
         const prompt = `Role: Senior Brand Strategist for a ${state.category.label} (Ref: ${state.category.brandRef}).
-        
         CONTEXT:
-        - Date: ${dateStr}. (CRITICAL: Generate titles relevant to UPCOMING festivals/seasons relative to this date. Do NOT suggest past holidays).
+        - Date: ${dateStr}. (CRITICAL: Generate titles relevant to UPCOMING festivals/seasons relative to this date).
         - Store: '${storeName}'
         - AOV: ₹${currentAOV}
         - Current Discount: ${currentDiscount}%
-        
-        MENU DATA:
-        ${inputMenu}
-
-        TASK: Create a retention strategy.
-        
+        - MENU DATA: ${inputMenu}
+        TASK: Create retention strategy.
         1. 10 'Smart Bundles':
-           - Create combos priced 15-20% above ₹${currentAOV}.
-           - TITLES: Must be catchy, Hinglish or trendy (like Swiggy/Zomato/Blinkit). specific to the current season/festival if applicable.
-           - STRUCTURE: Return 'items' as a structured array of ingredients/products so the user can calculate costs.
-           - Gold Value should be ~10-15% of deal_price.
-
-        2. 5 Gold Vouchers:
-           - For retention. "Spend ₹X, Get ₹Y Gold Next Time".
-           - Thresholds should target casuals (1x AOV) to whales (5x AOV).
-
-        3. Physical Repeat Business Card:
-           - A strategy for a printed card handed to customers.
-           - Logic: "Visit X times" or "Collect Stamps".
-           - Rewards must be Gold based.
-
-        OUTPUT JSON:
-        {
-          "deals": [
-            {
-                "title": "string", 
-                "deal_price": number, 
-                "gold": number,
-                "items": [ {"name": "Burger", "price": 200}, {"name": "Coke", "price": 50} ] 
-            }
-          ], 
-          "vouchers": [{"threshold": number, "amount": number, "desc": "string"}], 
-          "repeatCard": {"trigger": "string", "next_visit_min_spend": number, "next_visit_gold_reward": number, "card_title": "string", "card_desc": "string"}
-        }`;
+           - Combos priced 15-20% above ₹${currentAOV}.
+           - TITLES: Catchy, Hinglish or trendy.
+           - STRUCTURE: 'items' array.
+           - Gold Value ~10-15% of deal_price.
+        2. 5 Gold Vouchers.
+        3. Physical Repeat Card.
+        OUTPUT JSON: { "deals": [{"title": "string", "deal_price": number, "gold": number, "items": [{"name": "string", "price": number}]}], "vouchers": [...], "repeatCard": {...} }`;
 
         try {
             const result = await window.app.generateWithFallback((modelId) => ({
@@ -766,35 +662,21 @@ window.app = {
 
             const candidate = result?.candidates?.[0];
             let jsonText = candidate?.content?.parts?.[0]?.text;
-            
             const groundingChunks = candidate?.groundingMetadata?.groundingChunks || [];
             state.groundingSources = groundingChunks.map(c => c.web).filter(w => w);
 
-            if (jsonText) {
-                jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
-            }
-            
+            if (jsonText) jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
             if (!jsonText) throw new Error("Empty AI response");
 
             let parsed;
-            try {
-                parsed = JSON.parse(jsonText);
-            } catch (e) {
-                throw new Error("Invalid JSON from AI");
-            }
+            try { parsed = JSON.parse(jsonText); } catch (e) { throw new Error("Invalid JSON"); }
 
-            // ROBUSTNESS CHECKS & SELF-HEALING LOGIC
             if (!parsed.deals || !Array.isArray(parsed.deals)) parsed.deals = [];
-            
-            // Map simple strings to object if AI fails structured output
             parsed.deals = parsed.deals.map(d => {
-                if (typeof d.items === 'string') {
-                    d.items = [{name: d.items, price: d.deal_price}];
-                }
+                if (typeof d.items === 'string') d.items = [{name: d.items, price: d.deal_price}];
                 return d;
             });
 
-            // Auto-fix missing repeatCard (AI hallucination guard)
             if (!parsed.repeatCard) {
                 parsed.repeatCard = {
                     trigger: `Bill > ${window.app.fmt(Number(currentAOV)/2)}`,
@@ -805,32 +687,24 @@ window.app = {
                 };
             }
 
-            // Auto-fix missing vouchers (AI hallucination guard)
             if (!parsed.vouchers || !Array.isArray(parsed.vouchers)) {
                 parsed.vouchers = [
                     {threshold: Number(currentAOV), amount: Math.round(Number(currentAOV)*0.05), desc: "Bronze Reward"},
                     {threshold: Number(currentAOV)*2, amount: Math.round(Number(currentAOV)*0.2), desc: "Silver Reward"}
                 ];
             }
-            
             state.strategy = parsed;
             window.app.renderStrategy();
 
         } catch (err) {
-            if (err.message === "QuotaExhausted") {
-                // Handled in generateWithFallback
-            } else if (err.message === "No API Keys") {
-                // Handled in generateWithFallback
-            } else {
-                console.warn("AI failed. Using Smart Parse Fallback:", err);
-                 // Fallback Data so user never sees blank screen
+            if (err.message !== "QuotaExhausted" && err.message !== "No API Keys") {
+                 console.warn("AI failed. Using Smart Parse Fallback:", err);
                  const deals = [];
                  for(let i=0; i<10; i++) deals.push({title: "Offer "+(i+1), items: [{name: "Item 1", price: 100}], real_value: Number(currentAOV), deal_price: Number(currentAOV), gold: Math.round(currentAOV*0.1)});
                  const vouchers = [{threshold: 1000, amount: 100, desc: "Visit Bonus"}];
                  const repeatCard = {trigger: "Bill > 500", next_visit_min_spend: 1000, next_visit_gold_reward: 100, card_title: "Platinum Club", card_desc: "Physical Loyalty Card"};
                  state.strategy = { deals, vouchers, repeatCard };
                  window.app.renderStrategy();
-                 // Show a gentle toast instead of full error modal for fallbacks
             }
         } finally {
              setTimeout(() => window.app.toggleLoader(false), 500);
@@ -841,13 +715,9 @@ window.app = {
         document.getElementById('strategy-input-panel').style.display = 'none';
         const container = document.getElementById('strategy-results');
         container.style.display = 'block';
-
         const s = state.strategy;
         const sources = state.groundingSources || [];
-
         let html = '';
-
-        // REGENERATE BUTTON + TOGGLE STATE INFO
         const isQuickMode = document.getElementById('skip-details-toggle')?.checked;
         html += `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -860,7 +730,6 @@ window.app = {
             </div>
         `;
 
-        // --- GROUNDING SOURCES ---
         if (sources.length > 0) {
             html += `
                 <div style="margin-bottom: 20px; padding: 15px; background: rgba(66, 133, 244, 0.1); border: 1px solid rgba(66, 133, 244, 0.3); border-radius: 12px; animation: fadeUp 0.5s ease;">
@@ -871,47 +740,25 @@ window.app = {
             `;
             sources.forEach(src => {
                 if (src.uri && src.title) {
-                    html += `
-                        <a href="${src.uri}" target="_blank" style="font-size: 11px; color: var(--text-main); text-decoration: none; background: var(--bg-surface); padding: 4px 10px; border-radius: 15px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 5px;">
-                            ${src.title} <i class="fa fa-external-link-alt" style="font-size: 9px; opacity: 0.5;"></i>
-                        </a>
-                    `;
+                    html += `<a href="${src.uri}" target="_blank" style="font-size: 11px; color: var(--text-main); text-decoration: none; background: var(--bg-surface); padding: 4px 10px; border-radius: 15px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 5px;">${src.title} <i class="fa fa-external-link-alt" style="font-size: 9px; opacity: 0.5;"></i></a>`;
                 }
             });
             html += `</div></div>`;
         }
         
-        // --- 1. DEALS SECTION ---
-        html += `
-            <div style="display: flex; alignItems: center; gap: 8px; margin-bottom: 15px; margin-top: 10px;">
-                <div style="width: 24px; height: 24px; background: #FF5722; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
-                    <i class="fa fa-ticket-alt"></i>
-                </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">10 Exclusive Deals</span>
-            </div>
-            <div>
-        `;
+        html += `<div style="display: flex; alignItems: center; gap: 8px; margin-bottom: 15px; margin-top: 10px;"><div style="width: 24px; height: 24px; background: #FF5722; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;"><i class="fa fa-ticket-alt"></i></div><span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">10 Exclusive Deals</span></div><div>`;
 
         if (s.deals && s.deals.length > 0) {
             s.deals.forEach((deal, idx) => {
-                // Calculate Totals based on Breakdown
                 let realVal = 0;
                 let itemsHtml = '';
-                
                 if (Array.isArray(deal.items)) {
                     deal.items.forEach(item => {
                         const p = Number(item.price) || 0;
                         realVal += p;
-                        itemsHtml += `
-                            <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding: 6px 0;">
-                                <div contenteditable="true" style="font-size: 13px; color: var(--text-sub); flex: 1;">${item.name}</div>
-                                <div contenteditable="true" class="item-row-price" oninput="app.recalcItemTotal(this)" style="font-size: 13px; font-weight: 700; color: var(--text-main); width: 60px; text-align: right;">${p}</div>
-                            </div>
-                        `;
+                        itemsHtml += `<div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding: 6px 0;"><div contenteditable="true" style="font-size: 13px; color: var(--text-sub); flex: 1;">${item.name}</div><div contenteditable="true" class="item-row-price" oninput="app.recalcItemTotal(this)" style="font-size: 13px; font-weight: 700; color: var(--text-main); width: 60px; text-align: right;">${p}</div></div>`;
                     });
-                } else {
-                    realVal = deal.deal_price; // Fallback
-                }
+                } else { realVal = deal.deal_price; }
 
                 const price = deal.deal_price || 0;
                 const gold = Math.max(30, deal.gold || Math.round(price * 0.10));
@@ -922,178 +769,49 @@ window.app = {
 
                 html += `
                     <div class="deal-card deal-card-new stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${idx * 0.05}s;">
-                        <!-- HEADER -->
-                        <div class="deal-header">
-                            <div style="font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px;">DEAL #${idx+1}</div>
-                            <div class="deal-tag">GET ${window.app.fmt(gold)} GOLD</div>
-                        </div>
-
-                        <!-- BODY -->
+                        <div class="deal-header"><div style="font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px;">DEAL #${idx+1}</div><div class="deal-tag">GET ${window.app.fmt(gold)} GOLD</div></div>
                         <div class="deal-body">
                             <div contenteditable="true" style="font-size: 18px; font-weight: 800; margin-bottom: 12px; color: var(--text-main); line-height: 1.3;">${deal.title || 'Special Offer'}</div>
-                            
-                            <!-- ITEM BREAKDOWN TABLE -->
                             <div style="background: var(--bg-input); border-radius: 8px; padding: 10px; margin-bottom: 15px;">
                                 <div style="font-size: 9px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Includes (Edit Price to Update)</div>
                                 ${itemsHtml}
-                                <div style="display: flex; justify-content: space-between; padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--border-color);">
-                                    <div style="font-size: 11px; font-weight: 800;">Real Value Total</div>
-                                    <div class="real-value-display" style="font-size: 12px; font-weight: 800;">${window.app.fmt(realVal)}</div>
-                                </div>
+                                <div style="display: flex; justify-content: space-between; padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--border-color);"><div style="font-size: 11px; font-weight: 800;">Real Value Total</div><div class="real-value-display" style="font-size: 12px; font-weight: 800;">${window.app.fmt(realVal)}</div></div>
                             </div>
-
-                            <div class="deal-price-box">
-                                <div>
-                                    <div class="price-label">Deal Price (You Set)</div>
-                                    <div contenteditable="true" oninput="app.updateDealMath(this)" class="deal-price-edit" style="font-size: 20px; font-weight: 800; color: var(--brand); letter-spacing: -0.5px;">${window.app.fmt(price)}</div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div class="price-label">Net Earning</div>
-                                    <div class="val-net" style="font-size: 16px; font-weight: 800; color: #00E676;">${window.app.fmt(net)}</div>
-                                </div>
-                            </div>
-
-                            <div style="text-align: center; margin-top: 10px;">
-                                <div class="tap-hint">TAP FOR PROFIT MATH <i class="fa fa-chevron-down"></i></div>
-                            </div>
+                            <div class="deal-price-box"><div><div class="price-label">Deal Price (You Set)</div><div contenteditable="true" oninput="app.updateDealMath(this)" class="deal-price-edit" style="font-size: 20px; font-weight: 800; color: var(--brand); letter-spacing: -0.5px;">${window.app.fmt(price)}</div></div><div style="text-align: right;"><div class="price-label">Net Earning</div><div class="val-net" style="font-size: 16px; font-weight: 800; color: #00E676;">${window.app.fmt(net)}</div></div></div>
+                            <div style="text-align: center; margin-top: 10px;"><div class="tap-hint">TAP FOR PROFIT MATH <i class="fa fa-chevron-down"></i></div></div>
                         </div>
-
-                        <!-- EDITABLE BREAKDOWN -->
                         <div class="math-breakdown">
                              <div style="padding: 20px;">
-                                <div class="math-row">
-                                    <div class="math-label">Customer Pays</div>
-                                    <div class="math-val val-bill">${window.app.fmt(price)}</div>
-                                </div>
-                                <div class="math-row">
-                                    <div class="math-label">Gold Reward (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gold">${goldPct}</span>%)</div>
-                                    <div class="math-val val-gold" style="color:#FFB300;">- ${window.app.fmt(gold)}</div>
-                                </div>
-                                <div class="math-row">
-                                    <div class="math-label">Platform Fee (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-fee">10</span>%)</div>
-                                    <div class="math-val val-fee" style="color:#FF5722;">- ${window.app.fmt(platformFee)}</div>
-                                </div>
-                                <div class="math-row">
-                                    <div class="math-label">GST (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gst">18</span>%)</div>
-                                    <div class="math-val val-gst" style="color:#FF5722;">- ${window.app.fmt(gstOnFee)}</div>
-                                </div>
-                                <div style="padding-top: 12px; display: flex; justify-content: space-between; align-items: center; margin-top: 5px; border-top:1px solid var(--border-color);">
-                                    <span style="font-size: 11px; color: #00E676; font-weight: 800; text-transform: uppercase;">Net Merchant Earning</span>
-                                    <span class="val-net" style="font-weight: 800; font-size:18px;">${window.app.fmt(net)}</span>
-                                </div>
+                                <div class="math-row"><div class="math-label">Customer Pays</div><div class="math-val val-bill">${window.app.fmt(price)}</div></div>
+                                <div class="math-row"><div class="math-label">Gold Reward (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gold">${goldPct}</span>%)</div><div class="math-val val-gold" style="color:#FFB300;">- ${window.app.fmt(gold)}</div></div>
+                                <div class="math-row"><div class="math-label">Platform Fee (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-fee">10</span>%)</div><div class="math-val val-fee" style="color:#FF5722;">- ${window.app.fmt(platformFee)}</div></div>
+                                <div class="math-row"><div class="math-label">GST (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gst">18</span>%)</div><div class="math-val val-gst" style="color:#FF5722;">- ${window.app.fmt(gstOnFee)}</div></div>
+                                <div style="padding-top: 12px; display: flex; justify-content: space-between; align-items: center; margin-top: 5px; border-top:1px solid var(--border-color);"><span style="font-size: 11px; color: #00E676; font-weight: 800; text-transform: uppercase;">Net Merchant Earning</span><span class="val-net" style="font-weight: 800; font-size:18px;">${window.app.fmt(net)}</span></div>
                             </div>
                         </div>
                     </div>
                 `;
             });
         }
-
-        html += `
-            </div>
-            
-            <!-- 2. VOUCHERS SECTION -->
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;">
-                <div style="width: 24px; height: 24px; background: #FFC107; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: black; font-size: 12px;">
-                    <i class="fa fa-gift"></i>
-                </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Gold Vouchers (Retention)</span>
-            </div>
-            <div style="display: flex; overflow-x: auto; gap: 15px; padding-bottom: 20px; scroll-snap-type: x mandatory;">
-        `;
-
+        html += `</div>`;
+        
+        html += `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;"><div style="width: 24px; height: 24px; background: #FFC107; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: black; font-size: 12px;"><i class="fa fa-gift"></i></div><span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Gold Vouchers (Retention)</span></div><div style="display: flex; overflow-x: auto; gap: 15px; padding-bottom: 20px; scroll-snap-type: x mandatory;">`;
         if (s.vouchers && s.vouchers.length > 0) {
             s.vouchers.forEach((v, i) => {
-                html += `
-                    <div class="voucher-card-gold stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${0.5 + (i * 0.1)}s;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; opacity: 0.8;">VOUCHER</div>
-                            <div style="font-size: 10px; font-weight: 700; background: #000; color: #FFC107; padding: 2px 6px; border-radius: 4px;">GOLD</div>
-                        </div>
-                        <div style="text-align: center; padding: 15px 0;">
-                            <div contenteditable="true" style="font-size: 32px; font-weight: 900; letter-spacing: -1px;">${window.app.fmt(v.amount)}</div>
-                            <div style="font-size: 10px; font-weight: 700; margin-top: 5px; opacity: 0.7;">ON BILL > ${window.app.fmt(v.threshold)}</div>
-                        </div>
-                        <div contenteditable="true" style="font-size: 11px; text-align: center; font-weight: 600; opacity: 0.8; line-height: 1.4;">${v.desc}</div>
-                    </div>
-                `;
+                html += `<div class="voucher-card-gold stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${0.5 + (i * 0.1)}s;"><div style="display: flex; justify-content: space-between; align-items: center;"><div style="font-size: 10px; font-weight: 800; text-transform: uppercase; opacity: 0.8;">VOUCHER</div><div style="font-size: 10px; font-weight: 700; background: #000; color: #FFC107; padding: 2px 6px; border-radius: 4px;">GOLD</div></div><div style="text-align: center; padding: 15px 0;"><div contenteditable="true" style="font-size: 32px; font-weight: 900; letter-spacing: -1px;">${window.app.fmt(v.amount)}</div><div style="font-size: 10px; font-weight: 700; margin-top: 5px; opacity: 0.7;">ON BILL > ${window.app.fmt(v.threshold)}</div></div><div contenteditable="true" style="font-size: 11px; text-align: center; font-weight: 600; opacity: 0.8; line-height: 1.4;">${v.desc}</div></div>`;
             });
         }
+        html += `</div>`;
 
-        html += `
-            </div>
-            
-            <!-- 3. PHYSICAL REPEAT CARD SECTION -->
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;">
-                <div style="width: 24px; height: 24px; background: #4CAF50; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
-                    <i class="fa fa-credit-card"></i>
-                </div>
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Physical Repeat Business Card</span>
-            </div>
-        `;
-
-        // Safe Access for Repeat Card (prevent crash)
-        const rc = s.repeatCard || {
-             trigger: "Bill > 500", 
-             next_visit_gold_reward: 50, 
-             next_visit_min_spend: 100, 
-             card_title: "Gold Member", 
-             card_desc: "Loyalty Card" 
-        };
-
-        html += `
+        const rc = s.repeatCard || { trigger: "Bill > 500", next_visit_gold_reward: 50, next_visit_min_spend: 100, card_title: "Gold Member", card_desc: "Loyalty Card" };
+        html += `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;"><div style="width: 24px; height: 24px; background: #4CAF50; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;"><i class="fa fa-credit-card"></i></div><span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Physical Repeat Business Card</span></div>
             <div class="repeat-card-wrapper stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: 1s;">
-                <!-- VISUAL CARD FRONT -->
-                <div class="repeat-card-visual">
-                    <div class="rc-logo-corner"><i class="fa fa-infinity"></i></div>
-                    <div>
-                        <div class="rc-chip"></div>
-                        <div class="rc-store-name">${state.storeName || "STORE NAME"}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.6); margin-bottom: 4px;">
-                             ${rc.card_title || "Platinum Club"}
-                        </div>
-                        <div class="rc-offer-main">
-                             Get <span class="gold-text">${window.app.fmt(rc.next_visit_gold_reward || 0)} Gold</span> on every visit
-                        </div>
-                    </div>
-                </div>
-
-                <!-- EDIT PANEL -->
-                <div class="math-breakdown">
-                    <div style="padding: 20px;">
-                        <div style="font-size: 11px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 15px;">Physical Card Logic</div>
-                        
-                        <div class="rc-input-row">
-                            <span>Trigger Condition</span>
-                            <div class="rc-val-edit" contenteditable="true" style="width: 120px;">${rc.trigger || 'N/A'}</div>
-                        </div>
-
-                        <div class="rc-input-row">
-                            <span>Gold Reward Amount</span>
-                            <div class="rc-val-edit inp-rc-gold" contenteditable="true" oninput="app.updateRepeatCard()">${window.app.fmt(rc.next_visit_gold_reward || 0)}</div>
-                        </div>
-
-                        <div class="rc-input-row">
-                            <span>Redeem Min Bill</span>
-                            <div class="rc-val-edit" contenteditable="true">${window.app.fmt(rc.next_visit_min_spend || 0)}</div>
-                        </div>
-
-                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-sub); line-height: 1.4;">
-                            <i class="fa fa-print"></i> <b>Print this card.</b> Hand it to customers who spend above the trigger amount. They keep the card in their wallet and redeem Gold on every subsequent visit.
-                        </div>
-                    </div>
-                </div>
+                <div class="repeat-card-visual"><div class="rc-logo-corner"><i class="fa fa-infinity"></i></div><div><div class="rc-chip"></div><div class="rc-store-name">${state.storeName || "STORE NAME"}</div></div><div><div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.6); margin-bottom: 4px;">${rc.card_title || "Platinum Club"}</div><div class="rc-offer-main">Get <span class="gold-text">${window.app.fmt(rc.next_visit_gold_reward || 0)} Gold</span> on every visit</div></div></div>
+                <div class="math-breakdown"><div style="padding: 20px;"><div style="font-size: 11px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 15px;">Physical Card Logic</div><div class="rc-input-row"><span>Trigger Condition</span><div class="rc-val-edit" contenteditable="true" style="width: 120px;">${rc.trigger || 'N/A'}</div></div><div class="rc-input-row"><span>Gold Reward Amount</span><div class="rc-val-edit inp-rc-gold" contenteditable="true" oninput="app.updateRepeatCard()">${window.app.fmt(rc.next_visit_gold_reward || 0)}</div></div><div class="rc-input-row"><span>Redeem Min Bill</span><div class="rc-val-edit" contenteditable="true">${window.app.fmt(rc.next_visit_min_spend || 0)}</div></div><div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-sub); line-height: 1.4;"><i class="fa fa-print"></i> <b>Print this card.</b> Hand it to customers who spend above the trigger amount. They keep the card in their wallet and redeem Gold on every subsequent visit.</div></div></div>
             </div>
-
-            <button class="btn btn-brand ripple-effect" style="margin-top: 40px;" onclick="app.shareStrategy()">
-                <i class="fa fa-file-pdf"></i> Download Strategy PDF
-            </button>
-             <button class="btn ripple-effect" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-sub); margin-bottom: 50px;" onclick="location.reload()">
-                Reset Strategy
-            </button>
+            <button class="btn btn-brand ripple-effect" style="margin-top: 40px;" onclick="app.shareStrategy()"><i class="fa fa-file-pdf"></i> Download Strategy PDF</button>
+            <button class="btn ripple-effect" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-sub); margin-bottom: 50px;" onclick="location.reload()">Reset Strategy</button>
         `;
-
         container.innerHTML = html;
     }
 };
@@ -1103,4 +821,4 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', window.app.init);
 } else {
     window.app.init();
-                                               }
+            }
