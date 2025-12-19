@@ -32,7 +32,8 @@ const state = {
     discount: "",
     isDark: true,
     apiKeys: [], 
-    keyUsage: {}, // Tracks RPM/Daily limits per key
+    hfToken: "", 
+    keyHistory: {}, 
     strategy: null,
     groundingSources: [],
     loaderInterval: null,
@@ -43,11 +44,11 @@ const state = {
     cooldownTimer: null
 };
 
-// MODEL PRIORITY: Flash 2.5 -> Flash 1.5 -> Pro (Last Resort)
+// MODEL CONFIG
 const AI_MODELS = [
-    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', rpm: 15, rpd: 1500 },
-    { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', rpm: 15, rpd: 1500 },
-    { id: 'gemini-1.5-pro',   label: 'Gemini 1.5 Pro',   rpm: 2,  rpd: 50   }
+    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', rpm: 15, rpd: 1500, tpm: 1000000 },
+    { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', rpm: 15, rpd: 1500, tpm: 1000000 },
+    { id: 'gemini-1.5-pro',   label: 'Gemini 1.5 Pro',   rpm: 2,  rpd: 50,   tpm: 32000 }
 ];
 
 // --- INITIALIZATION ---
@@ -59,54 +60,49 @@ try {
         if (single) state.apiKeys = [single];
     }
 
-    const storedUsage = localStorage.getItem('discount_dost_key_usage');
-    if (storedUsage) state.keyUsage = JSON.parse(storedUsage);
+    const storedHf = localStorage.getItem('discount_dost_hf_token');
+    if (storedHf) state.hfToken = storedHf;
+
+    const storedHistory = localStorage.getItem('discount_dost_key_history');
+    if (storedHistory) state.keyHistory = JSON.parse(storedHistory);
 
 } catch (e) {
     console.warn("Storage access error");
 }
 
-// --- USAGE TRACKER ---
+// --- ACCURATE TRACKING ENGINE ---
 window.tracker = {
-    getUsage: (key) => {
-        if (!state.keyUsage[key]) {
-            state.keyUsage[key] = { 
-                day: new Date().toDateString(), 
-                dailyCount: 0, 
-                minuteStart: Date.now(), 
-                minuteCount: 0 
-            };
-        }
-        const u = state.keyUsage[key];
-        
-        // Reset Minute
-        if (Date.now() - u.minuteStart > 60000) {
-            u.minuteStart = Date.now();
-            u.minuteCount = 0;
-        }
-        
-        // Reset Day
-        if (u.day !== new Date().toDateString()) {
-            u.day = new Date().toDateString();
-            u.dailyCount = 0;
-        }
-
-        return u;
+    logRequest: (key, tokenCount) => {
+        if (!state.keyHistory[key]) state.keyHistory[key] = [];
+        state.keyHistory[key].push({ ts: Date.now(), tokens: tokenCount });
+        window.tracker.cleanup(key); 
+        localStorage.setItem('discount_dost_key_history', JSON.stringify(state.keyHistory));
     },
-    
-    increment: (key) => {
-        const u = window.tracker.getUsage(key);
-        u.minuteCount++;
-        u.dailyCount++;
-        state.keyUsage[key] = u;
-        localStorage.setItem('discount_dost_key_usage', JSON.stringify(state.keyUsage));
+
+    cleanup: (key) => {
+        const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+        if (state.keyHistory[key]) {
+            state.keyHistory[key] = state.keyHistory[key].filter(log => log.ts > oneDayAgo);
+        }
+    },
+
+    getStats: (key) => {
+        const history = state.keyHistory[key] || [];
+        const now = Date.now();
+        const oneMinAgo = now - 60000;
+        const reqsLastMin = history.filter(log => log.ts > oneMinAgo).length;
+        const tokensLastMin = history.filter(log => log.ts > oneMinAgo).reduce((sum, log) => sum + (log.tokens || 0), 0);
+        const midnight = new Date();
+        midnight.setHours(0,0,0,0);
+        const reqsToday = history.filter(log => log.ts > midnight.getTime()).length;
+
+        return { rpm: reqsLastMin, tpm: tokensLastMin, rpd: reqsToday, dailyLimit: 1500, rpmLimit: 15 };
     },
 
     isRateLimited: (key, modelRPM, modelRPD) => {
-        const u = window.tracker.getUsage(key);
-        // Add buffer (-1) to be safe
-        if (u.minuteCount >= modelRPM - 1) return "RPM Limit Hit";
-        if (u.dailyCount >= modelRPD - 5) return "Daily Limit Hit";
+        const stats = window.tracker.getStats(key);
+        if (stats.rpm >= modelRPM) return `RPM Limit (${stats.rpm}/${modelRPM})`;
+        if (stats.rpd >= modelRPD) return `Daily Limit (${stats.rpd}/${modelRPD})`;
         return false;
     }
 };
@@ -134,41 +130,43 @@ window.app = {
                 if(el) el.addEventListener('input', (e) => state[id === 'store' ? 'storeName' : id] = e.target.value);
             });
 
-            // Handle Key Manager
-            if (document.getElementById('key-manager-modal')) {
-                // Pre-render bars logic done in openKeyManager
-            }
-
         } catch (err) { console.error("Init error:", err); }
     },
 
-    // --- KEY MANAGER ---
+    // --- KEY MANAGER UI ---
     openKeyManager: () => {
         const modal = document.getElementById('key-manager-modal');
         const list = document.getElementById('key-list');
-        list.innerHTML = '';
+        const hfInput = document.getElementById('hf-key-input');
         
-        // RENDER INPUTS
+        list.innerHTML = '';
+        if (hfInput) hfInput.value = state.hfToken || '';
+        
         for (let i = 0; i < 5; i++) {
             const val = state.apiKeys[i] || '';
-            
-            // Get Usage Stats for this key if it exists
             let statsHtml = '';
+
             if (val.length > 10) {
-                const u = window.tracker.getUsage(val);
-                const rpmPct = (u.minuteCount / 15) * 100;
-                const dayPct = (u.dailyCount / 1500) * 100;
-                
+                const stats = window.tracker.getStats(val);
+                const rpmPct = Math.min((stats.rpm / 15) * 100, 100);
+                const rpdPct = Math.min((stats.rpd / 1500) * 100, 100);
+                const rpmColor = stats.rpm >= 15 ? '#FF3D00' : (stats.rpm >= 12 ? '#FFC107' : '#00E676');
+                const rpdColor = stats.rpd >= 1500 ? '#FF3D00' : '#4285F4';
+
                 statsHtml = `
-                    <div style="margin-top:4px; margin-bottom:12px; font-size:10px; color:var(--text-sub);">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
-                            <span>RPM (Speed): ${u.minuteCount}/15</span>
-                            <span>Daily: ${u.dailyCount}/1500</span>
+                    <div style="margin-top:5px; margin-bottom:15px; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                            <span style="font-size:10px; font-weight:700; color:${rpmColor}">RPM (Speed): ${stats.rpm}/15</span>
+                            <span style="font-size:10px; color:var(--text-sub);">Tokens/min: ${stats.tpm.toLocaleString()}</span>
                         </div>
-                        <div style="height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; display:flex;">
-                            <div style="width:${rpmPct}%; background:${rpmPct > 90 ? '#FF3D00' : '#00E676'}; height:100%;"></div>
-                            <div style="width:2px; background:#000;"></div>
-                            <div style="width:${dayPct}%; background:#FFC107; height:100%; opacity:0.7;"></div>
+                        <div style="height:4px; background:rgba(0,0,0,0.3); border-radius:2px; overflow:hidden; margin-bottom:8px;">
+                            <div style="width:${rpmPct}%; background:${rpmColor}; height:100%; transition:width 0.3s;"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                            <span style="font-size:10px; font-weight:700; color:var(--text-main);">Daily Usage: ${stats.rpd}/1500</span>
+                        </div>
+                        <div style="height:4px; background:rgba(0,0,0,0.3); border-radius:2px; overflow:hidden;">
+                            <div style="width:${rpdPct}%; background:${rpdColor}; height:100%; transition:width 0.3s;"></div>
                         </div>
                     </div>
                 `;
@@ -177,8 +175,8 @@ window.app = {
             list.innerHTML += `
                 <div>
                     <input type="text" id="key-slot-${i}" class="cat-trigger" 
-                        placeholder="Key ${i+1} (Auto-Switch Slot)" value="${val}" 
-                        style="padding: 12px; font-size: 13px; border:1px solid var(--border-color);">
+                        placeholder="Gemini Key ${i+1} (Auto-Switch Slot)" value="${val}" 
+                        style="padding: 12px; font-size: 13px; border:1px solid var(--border-color); width:100%;">
                     ${statsHtml}
                 </div>
             `;
@@ -190,18 +188,23 @@ window.app = {
         const newKeys = [];
         for (let i = 0; i < 5; i++) {
             const el = document.getElementById(`key-slot-${i}`);
-            if (el && el.value.trim().length > 10) { 
-                newKeys.push(el.value.trim());
-            }
+            if (el && el.value.trim().length > 10) newKeys.push(el.value.trim());
         }
         
+        // Save HF Token
+        const hfInput = document.getElementById('hf-key-input');
+        if (hfInput) {
+            state.hfToken = hfInput.value.trim();
+            localStorage.setItem('discount_dost_hf_token', state.hfToken);
+        }
+
         if (newKeys.length > 0) {
             state.apiKeys = newKeys;
             localStorage.setItem('discount_dost_gemini_keys', JSON.stringify(newKeys));
             document.getElementById('key-manager-modal').style.display = 'none';
             document.getElementById('api-key-modal').style.display = 'none';
         } else {
-            alert("Enter at least one valid key.");
+            alert("Enter at least one valid Gemini key.");
         }
     },
     
@@ -216,78 +219,127 @@ window.app = {
         }
     },
 
-    // --- CORE GENERATION LOGIC ---
-    generateWithFallback: async (payloadFactory) => {
+    // --- PUTER.JS INTEGRATION (FREE TIER) ---
+    generatePuter: async (prompt, isJson = true) => {
+        if (typeof puter === 'undefined') throw new Error("Puter.js not loaded");
+        
+        // Use Puter Chat AI
+        const response = await puter.ai.chat(prompt);
+        const text = response?.message?.content || response?.toString() || "";
+        
+        if (isJson) {
+             const match = text.match(/\{[\s\S]*\}/);
+             if (match) return JSON.parse(match[0]);
+             throw new Error("Puter JSON Parse Failed");
+        }
+        return { text };
+    },
+
+    // --- HUGGING FACE INTEGRATION ---
+    generateHuggingFace: async (prompt, isJson = true) => {
+        if (!state.hfToken) throw new Error("No HF Token");
+        
+        const model = "mistralai/Mistral-7B-Instruct-v0.3"; 
+        const url = `https://api-inference.huggingface.co/models/${model}`;
+        
+        const formattedPrompt = `<s>[INST] ${prompt} [/INST]`;
+
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { 
+                "Authorization": `Bearer ${state.hfToken}`,
+                "Content-Type": "application/json" 
+            },
+            body: JSON.stringify({ 
+                inputs: formattedPrompt,
+                parameters: { max_new_tokens: 2000, return_full_text: false, temperature: 0.7 } 
+            })
+        });
+
+        if (!response.ok) throw new Error(`HF Error ${response.status}`);
+        
+        const result = await response.json();
+        let text = result[0]?.generated_text || "";
+        
+        if (isJson) {
+            const match = text.match(/\{[\s\S]*\}/);
+            if (match) return JSON.parse(match[0]);
+            throw new Error("HF JSON Parse Failed");
+        }
+        return { text };
+    },
+
+    // --- CORE GENERATION LOGIC (TRIPLE LAYER) ---
+    generateWithFallback: async (payloadFactory, type = 'text') => {
         const activeModelBadge = document.getElementById('loader-active-model');
         const modelNameText = document.getElementById('model-name-text');
         
-        // 1. Validation
-        if (!state.apiKeys || state.apiKeys.length === 0) {
-             window.app.showError("No Keys Found", "Please add a Gemini API Key.");
-             throw new Error("No API Keys");
-        }
-
         if(activeModelBadge) activeModelBadge.style.display = 'inline-flex';
 
-        // 2. Loop through Models (Best -> Fastest -> Fallback)
-        for (let m = 0; m < AI_MODELS.length; m++) {
-            const model = AI_MODELS[m];
-            if(modelNameText) modelNameText.innerText = model.label; // Show user which model
+        // LAYER 1: GEMINI (High Speed)
+        if (state.apiKeys && state.apiKeys.length > 0) {
+            for (let m = 0; m < AI_MODELS.length; m++) {
+                const model = AI_MODELS[m];
+                if(modelNameText) modelNameText.innerText = model.label; 
 
-            // 3. Loop through Keys (Rotation)
-            for (let k = 0; k < state.apiKeys.length; k++) {
-                const currentKey = state.apiKeys[k];
+                for (let k = 0; k < state.apiKeys.length; k++) {
+                    const currentKey = state.apiKeys[k];
+                    const limitReason = window.tracker.isRateLimited(currentKey, model.rpm, model.rpd);
+                    if (limitReason) continue; 
 
-                // Check Local Limits BEFORE calling
-                const limitReason = window.tracker.isRateLimited(currentKey, model.rpm, model.rpd);
-                if (limitReason) {
-                    console.log(`Skipping Key ${k+1} due to ${limitReason}`);
-                    continue; // Skip this key, try next
-                }
+                    try {
+                        const body = payloadFactory(model.id);
+                        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${currentKey}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body)
+                        });
 
-                try {
-                    const body = payloadFactory(model.id);
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${currentKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(body)
-                    });
+                        if (response.status === 429 || response.status === 503) {
+                            for(let i=0; i<15; i++) window.tracker.logRequest(currentKey, 0);
+                            continue; 
+                        }
 
-                    // 4. Handle Quota Errors specially
-                    if (response.status === 429 || response.status === 503) {
-                        console.warn(`Key ${k+1} exhausted on ${model.id}. Rotating...`);
-                        // Artificially max out the counter so we skip it next time immediately
-                        const u = window.tracker.getUsage(currentKey);
-                        u.minuteCount = 100; 
-                        continue; // Try next key
-                    }
+                        if (!response.ok) break; // Try next model
 
-                    if (!response.ok) {
-                         // Some other error (400, 500)
-                         console.warn(`Model ${model.id} error. Downgrading...`);
-                         break; // Break Key loop to try NEXT MODEL
-                    }
+                        const data = await response.json();
+                        const usage = data.usageMetadata;
+                        const totalTokens = usage ? usage.totalTokenCount : 500;
+                        window.tracker.logRequest(currentKey, totalTokens);
+                        return data; 
 
-                    const data = await response.json();
-                    
-                    // Success! Track usage and return
-                    window.tracker.increment(currentKey);
-                    return data; 
-
-                } catch (e) {
-                    console.warn(`Network fail Key ${k+1}.`);
-                    continue;
+                    } catch (e) { continue; }
                 }
             }
-            // If all keys failed for this model, loop continues to NEXT MODEL
         }
         
-        // If we get here, EVERYTHING failed.
-        window.app.showError("All Systems Busy", "We tried all models and keys but they are busy. Please wait 1 minute.");
+        // Extract raw prompt for fallbacks
+        const dummyPayload = payloadFactory('dummy');
+        const promptText = dummyPayload.contents[0].parts[0].text; 
+
+        // LAYER 2: HUGGING FACE (Backup)
+        if (state.hfToken && type === 'text') {
+            if(modelNameText) modelNameText.innerText = "Hugging Face (Mistral)";
+            try {
+                const hfData = await window.app.generateHuggingFace(promptText);
+                return { candidates: [{ content: { parts: [{ text: JSON.stringify(hfData) }] } }] };
+            } catch (hfErr) { console.warn("HF Failed:", hfErr); }
+        }
+
+        // LAYER 3: PUTER.JS (Free / Unlimited)
+        if (type === 'text') {
+            if(modelNameText) modelNameText.innerText = "Puter.js (Free Tier)";
+            try {
+                const puterData = await window.app.generatePuter(promptText);
+                return { candidates: [{ content: { parts: [{ text: JSON.stringify(puterData) }] } }] };
+            } catch (pErr) { console.warn("Puter Failed:", pErr); }
+        }
+
+        window.app.showError("System Overload", "All AI providers (Google, HF, Puter) are busy. Please wait a moment.");
         throw new Error("QuotaExhausted");
     },
 
-    // --- OTHER UI FUNCTIONS ---
+    // --- UI HELPERS ---
     toggleTheme: () => {
         state.isDark = !state.isDark;
         document.body.classList.toggle('light-mode');
@@ -344,12 +396,18 @@ window.app = {
         window.app.navTo(page);
     },
 
-    fmt: (n) => "₹" + Math.round(Number(n)).toLocaleString('en-IN'),
+    fmt: (n) => {
+        const num = parseFloat(n);
+        if (isNaN(num)) return "₹0";
+        return "₹" + Math.round(num).toLocaleString('en-IN');
+    },
+    
     fmtCompact: (n) => {
-        n = Number(n);
-        if (n >= 10000000) return "₹" + (n / 10000000).toFixed(2) + " Cr";
-        if (n >= 100000) return "₹" + (n / 100000).toFixed(2) + " L";
-        return "₹" + Math.round(n).toLocaleString('en-IN');
+        const num = Number(n);
+        if (isNaN(num)) return "₹0";
+        if (num >= 10000000) return "₹" + (num / 10000000).toFixed(2) + " Cr";
+        if (num >= 100000) return "₹" + (num / 100000).toFixed(2) + " L";
+        return "₹" + Math.round(num).toLocaleString('en-IN');
     },
 
     toggleDeal: (el) => {
@@ -561,7 +619,7 @@ window.app = {
                             ...inlineDataParts 
                         ]
                     }]
-                }));
+                }), 'ocr');
                 let scannedText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
                 if (!scannedText || scannedText.length < 5) throw new Error("OCR yielded little text");
                 document.getElementById('menu-text').value = scannedText.trim();
@@ -649,11 +707,11 @@ window.app = {
         1. 10 'Smart Bundles':
            - Combos priced 15-20% above ₹${currentAOV}.
            - TITLES: Catchy, Hinglish or trendy.
-           - STRUCTURE: 'items' array.
+           - STRUCTURE: 'items' array (REQUIRED for Quick Mode and Full Mode).
            - Gold Value ~10-15% of deal_price.
         2. 5 Gold Vouchers.
         3. Physical Repeat Card.
-        OUTPUT JSON: { "deals": [{"title": "string", "deal_price": number, "gold": number, "items": [{"name": "string", "price": number}]}], "vouchers": [...], "repeatCard": {...} }`;
+        OUTPUT JSON: { "deals": [{"title": "string", "deal_price": number, "gold": number, "items": [{"name": "string", "price": number}]}], "vouchers": [{"threshold": number, "amount": number, "desc": "string"}], "repeatCard": {...} }`;
 
         try {
             const result = await window.app.generateWithFallback((modelId) => ({
@@ -798,7 +856,11 @@ window.app = {
         html += `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;"><div style="width: 24px; height: 24px; background: #FFC107; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: black; font-size: 12px;"><i class="fa fa-gift"></i></div><span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Gold Vouchers (Retention)</span></div><div style="display: flex; overflow-x: auto; gap: 15px; padding-bottom: 20px; scroll-snap-type: x mandatory;">`;
         if (s.vouchers && s.vouchers.length > 0) {
             s.vouchers.forEach((v, i) => {
-                html += `<div class="voucher-card-gold stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${0.5 + (i * 0.1)}s;"><div style="display: flex; justify-content: space-between; align-items: center;"><div style="font-size: 10px; font-weight: 800; text-transform: uppercase; opacity: 0.8;">VOUCHER</div><div style="font-size: 10px; font-weight: 700; background: #000; color: #FFC107; padding: 2px 6px; border-radius: 4px;">GOLD</div></div><div style="text-align: center; padding: 15px 0;"><div contenteditable="true" style="font-size: 32px; font-weight: 900; letter-spacing: -1px;">${window.app.fmt(v.amount)}</div><div style="font-size: 10px; font-weight: 700; margin-top: 5px; opacity: 0.7;">ON BILL > ${window.app.fmt(v.threshold)}</div></div><div contenteditable="true" style="font-size: 11px; text-align: center; font-weight: 600; opacity: 0.8; line-height: 1.4;">${v.desc}</div></div>`;
+                // ROBUST FORMATTING FIX
+                const amount = window.app.fmt(Number(v.amount) || 0);
+                const threshold = window.app.fmt(Number(v.threshold) || 0);
+                
+                html += `<div class="voucher-card-gold stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${0.5 + (i * 0.1)}s;"><div style="display: flex; justify-content: space-between; align-items: center;"><div style="font-size: 10px; font-weight: 800; text-transform: uppercase; opacity: 0.8;">VOUCHER</div><div style="font-size: 10px; font-weight: 700; background: #000; color: #FFC107; padding: 2px 6px; border-radius: 4px;">GOLD</div></div><div style="text-align: center; padding: 15px 0;"><div contenteditable="true" style="font-size: 32px; font-weight: 900; letter-spacing: -1px;">${amount}</div><div style="font-size: 10px; font-weight: 700; margin-top: 5px; opacity: 0.7;">ON BILL > ${threshold}</div></div><div contenteditable="true" style="font-size: 11px; text-align: center; font-weight: 600; opacity: 0.8; line-height: 1.4;">${v.desc}</div></div>`;
             });
         }
         html += `</div>`;
@@ -821,4 +883,4 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', window.app.init);
 } else {
     window.app.init();
-            }
+                       }
