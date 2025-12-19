@@ -506,21 +506,34 @@ window.app = {
         }, 1000);
     },
 
+    showError: (title, desc) => {
+        window.app.toggleLoader(false);
+        const modal = document.getElementById('error-modal');
+        document.getElementById('error-title').innerText = title;
+        document.getElementById('error-desc').innerText = desc;
+        modal.style.display = 'flex';
+    },
+
     generateWithFallback: async (payloadFactory) => {
-        const textEl = document.getElementById('loader-model-text');
+        const activeModelBadge = document.getElementById('loader-active-model');
+        const modelNameText = document.getElementById('model-name-text');
         
         const keysToTry = state.apiKeys.length > 0 ? state.apiKeys : [];
-        if (keysToTry.length === 0) throw new Error("No API Keys");
+        if (keysToTry.length === 0) {
+             window.app.showError("Missing API Key", "Please add a free Google Gemini API Key to continue.");
+             throw new Error("No API Keys");
+        }
+
+        if(activeModelBadge) activeModelBadge.style.display = 'inline-flex';
 
         for (let m = 0; m < AI_MODELS.length; m++) {
             const model = AI_MODELS[m];
             
+            // UPDATE LOADER UI TO SHOW MODEL
+            if(modelNameText) modelNameText.innerText = model.label;
+
             for (let k = 0; k < keysToTry.length; k++) {
                 const currentKey = keysToTry[k];
-
-                if (textEl) {
-                    textEl.innerText = `${model.label} (Key ${k+1})`;
-                }
 
                 try {
                     const body = payloadFactory(model.id);
@@ -549,13 +562,9 @@ window.app = {
                     continue;
                 }
             }
-            
-             if (textEl && m < AI_MODELS.length - 1) {
-                textEl.innerText = `Downgrading to ${AI_MODELS[m+1].label}...`;
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
         }
         
+        window.app.showError("AI Busy / Quota Limit", "All your free keys are currently busy or exhausted. Please wait a minute or add more keys.");
         throw new Error("QuotaExhausted");
     },
 
@@ -609,10 +618,9 @@ window.app = {
                 
             } catch (err) {
                 if (err.message === "QuotaExhausted") {
-                    window.app.triggerCooldown();
+                     // Handled by generateWithFallback
                 } else {
-                    console.warn("AI Scan failed.", err);
-                    alert("Could not scan files. Please ensure PDFs are text-readable or try images.");
+                    window.app.showError("Scan Failed", "Could not read files. Please try clearer images or a text PDF.");
                     const fallbackData = window.app.getFallbackMenu(state.category.id);
                     document.getElementById('menu-text').value = fallbackData;
                 }
@@ -627,16 +635,16 @@ window.app = {
     toggleLoader: (show, isScanning = false) => {
         const loader = document.getElementById('loader');
         const quoteBox = document.getElementById('loader-quote');
-        const textEl = document.getElementById('loader-model-text');
         const storeNameEl = document.getElementById('loader-store-name');
         const statusEl = document.getElementById('status-dynamic');
         const progressEl = document.getElementById('loader-progress');
+        const activeModelBadge = document.getElementById('loader-active-model');
         
         if (show) {
             loader.style.display = 'flex';
+            if(activeModelBadge) activeModelBadge.style.display = 'none'; // Hide initially until loop starts
             
             if(storeNameEl) storeNameEl.innerText = state.storeName || "Your Business";
-            if(textEl) textEl.innerText = `GEMINI 2.5 FLASH`;
 
             // Progress Animation Simulation
             let progress = 0;
@@ -810,7 +818,9 @@ window.app = {
 
         } catch (err) {
             if (err.message === "QuotaExhausted") {
-                window.app.triggerCooldown();
+                // Handled in generateWithFallback
+            } else if (err.message === "No API Keys") {
+                // Handled in generateWithFallback
             } else {
                 console.warn("AI failed. Using Smart Parse Fallback:", err);
                  // Fallback Data so user never sees blank screen
@@ -820,6 +830,7 @@ window.app = {
                  const repeatCard = {trigger: "Bill > 500", next_visit_min_spend: 1000, next_visit_gold_reward: 100, card_title: "Platinum Club", card_desc: "Physical Loyalty Card"};
                  state.strategy = { deals, vouchers, repeatCard };
                  window.app.renderStrategy();
+                 // Show a gentle toast instead of full error modal for fallbacks
             }
         } finally {
              setTimeout(() => window.app.toggleLoader(false), 500);
@@ -1092,4 +1103,4 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', window.app.init);
 } else {
     window.app.init();
-    }
+                                               }
