@@ -187,7 +187,7 @@
         .deal-price-box { background: var(--bg-input); border-radius: 12px; padding: 15px; display: flex; align-items: center; justify-content: space-between; margin-top: 15px; border: 1px solid var(--border-color); }
         .price-label { font-size: 10px; color: var(--text-sub); text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
         .math-breakdown { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out, opacity 0.3s ease; opacity: 0; background: rgba(0,0,0,0.2); }
-        .deal-card.expanded .math-breakdown { max-height: 500px; opacity: 1; border-top: 1px solid var(--border-color); }
+        .deal-card.expanded .math-breakdown { max-height: 800px; opacity: 1; border-top: 1px solid var(--border-color); }
         .tap-hint { font-size: 10px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; }
 
         /* MATH EDIT TABLES */
@@ -261,56 +261,51 @@
         .cat-item { background: var(--bg-input); padding: 18px 8px; border-radius: 20px; text-align: center; border: 2px solid transparent; transition: 0.2s; color: var(--text-main); cursor: pointer; }
         .cat-item.selected { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
 
-        /* --- UPDATED HOLOGRAPHIC SCANNER LOADER --- */
+        /* --- NEW INTERACTIVE LOADER (Swiggy/Zomato Style) --- */
+        .icon-shuffle-box {
+            width: 80px; height: 80px;
+            background: #fff;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            animation: bounceSoft 2s infinite ease-in-out;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+        @keyframes bounceSoft {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-10px) scale(1.05); }
+        }
+        .shuffle-icon {
+            font-size: 35px;
+            color: #FF5722;
+            position: absolute;
+            animation: iconSwap 4s infinite step-end;
+        }
+        /* This simulates changing icons */
+        @keyframes iconSwap {
+            0% { content: '\f0f4'; font-family: "Font Awesome 6 Free"; font-weight: 900; } /* Coffee */
+            25% { content: '\f818'; font-family: "Font Awesome 6 Free"; font-weight: 900; } /* Burger */
+            50% { content: '\f290'; font-family: "Font Awesome 6 Free"; font-weight: 900; } /* Shopping Bag */
+            75% { content: '\f0c4'; font-family: "Font Awesome 6 Free"; font-weight: 900; } /* Cut/Salon */
+        }
+        /* Ensure the loader overlay is solid for this style */
         .loader-overlay { 
             position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
             background: var(--bg-body); 
             z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; 
             animation: fadeIn 0.4s ease; 
         }
+        .loader-overlay.modern {
+            background: var(--bg-body);
+            opacity: 0.98;
+            backdrop-filter: blur(20px);
+        }
         
         .loader-content {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             width: 100%;
-        }
-
-        /* Holographic Scan Effect & Pulsating Glow */
-        .loader-logo-box {
-            position: relative; width: 100px; height: 100px;
-            display: flex; align-items: center; justify-content: center;
-            margin-bottom: 40px;
-            border-radius: 20px;
-            background: rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.1);
-            overflow: hidden;
-            box-shadow: 0 0 30px rgba(255, 87, 34, 0.2);
-            animation: pulseGlow 2.5s infinite ease-in-out;
-        }
-        @keyframes pulseGlow {
-            0% { box-shadow: 0 0 20px rgba(255, 87, 34, 0.2); border-color: rgba(255,255,255,0.1); }
-            50% { box-shadow: 0 0 45px rgba(255, 193, 7, 0.5); border-color: rgba(255, 193, 7, 0.5); transform: scale(1.02); }
-            100% { box-shadow: 0 0 20px rgba(255, 87, 34, 0.2); border-color: rgba(255,255,255,0.1); }
-        }
-
-        .loader-logo-box svg {
-            width: 70px; height: 70px;
-            z-index: 2;
-            opacity: 0.9;
-            filter: drop-shadow(0 0 10px rgba(255, 193, 7, 0.4));
-        }
-        .scan-beam {
-            position: absolute;
-            top: -100%; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to bottom, transparent, rgba(255, 193, 7, 0.8), transparent);
-            z-index: 3;
-            animation: scanMove 2s infinite ease-in-out;
-            pointer-events: none;
-        }
-        @keyframes scanMove {
-            0% { top: -120%; opacity: 0; }
-            30% { opacity: 1; }
-            70% { opacity: 1; }
-            100% { top: 120%; opacity: 0; }
         }
 
         /* Progress Bar */
@@ -335,10 +330,6 @@
 
         /* Dynamic Status Text */
         .loader-text-group { text-align: center; margin-bottom: 30px; }
-        .loader-label { 
-            font-size: 10px; font-weight: 700; color: var(--text-sub); 
-            text-transform: uppercase; letter-spacing: 3px; margin-bottom: 8px; opacity: 0.7; 
-        }
         .loader-brand { 
             font-size: 22px; font-weight: 700; color: var(--text-main); 
             letter-spacing: 0.5px; font-family: 'Manrope', sans-serif; 
@@ -351,38 +342,19 @@
             min-height: 20px;
             font-weight: 700;
         }
-
-        /* Tech/Data Crunching Graphic */
-        .model-status-box {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 12px 20px;
-            display: flex; flex-direction: column; gap: 8px;
-            width: 280px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            margin-top: 20px;
-        }
-        .ms-row { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 4px; }
-        .ms-dot { width: 6px; height: 6px; background: #00E676; border-radius: 50%; box-shadow: 0 0 8px #00E676; animation: blinkStatus 1.5s infinite; }
-        @keyframes blinkStatus { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        
-        .ms-model { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--brand); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        .ms-terminal {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
-            color: var(--text-sub);
-            line-height: 1.6;
-            height: 35px;
-            overflow: hidden;
-            text-align: left;
-        }
-        .term-line { display: block; white-space: nowrap; overflow: hidden; animation: typeLine 0.5s steps(20, end); }
         
         .quote-container { margin-top: 30px; text-align: center; max-width: 80%; opacity: 0.5; }
         .quote-text { font-size: 12px; color: var(--text-sub); font-style: italic; }
+
+        /* TOGGLE SWITCH CSS */
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-input); transition: .4s; border: 1px solid var(--border-color); }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 2px; bottom: 2px; background-color: var(--text-sub); transition: .4s; }
+        input:checked + .slider { background-color: var(--brand); border-color: var(--brand); }
+        input:checked + .slider:before { transform: translateX(20px); background-color: #fff; }
+        .slider.round { border-radius: 34px; }
+        .slider.round:before { border-radius: 50%; }
 
         /* API KEY & COOLDOWN */
         .api-key-input { margin: 15px 0; font-size: 14px; text-align: center; }
@@ -437,46 +409,50 @@
 
         <!-- MAIN CONTENT -->
         <main id="scroll-container" onscroll="app.handleScroll()">
-            <!-- LOADER -->
-            <div id="loader" class="loader-overlay" style="display: none;">
+            <!-- NEW INTERACTIVE LOADER -->
+            <div id="loader" class="loader-overlay modern" style="display: none;">
                 <div class="loader-content">
-                    <!-- Holographic Logo Box -->
-                    <div class="loader-logo-box">
-                         <div class="scan-beam"></div>
-                         <svg viewBox="0 0 512 512">
-                             <rect width="512" height="512" rx="90" fill="#000000"/>
-                             <path d="M165 110 H 265 C 355 110 415 175 415 256 C 415 337 355 402 265 402 H 165 V 110 Z M 225 170 V 342 H 265 C 315 342 355 305 355 256 C 355 207 315 170 265 170 H 225 Z" fill="#FFC107"/>
-                        </svg>
+                    <!-- Bouncing Icon Box -->
+                    <div class="icon-shuffle-box">
+                         <!-- Pure CSS Icon swapping using pseudo elements in animation -->
+                         <i class="fa fa-utensils shuffle-icon" style="animation: none;"></i> <!-- Fallback -->
+                         <style>
+                             .shuffle-icon::before {
+                                 content: '\f2e7'; /* Utensils */
+                                 animation: iconContentSwap 3s infinite;
+                             }
+                             @keyframes iconContentSwap {
+                                 0% { content: '\f0f4'; opacity: 0; transform: translateY(20px); } /* Coffee */
+                                 10% { opacity: 1; transform: translateY(0); }
+                                 25% { opacity: 1; transform: translateY(0); }
+                                 35% { opacity: 0; transform: translateY(-20px); }
+                                 
+                                 35.01% { content: '\f805'; opacity: 0; transform: translateY(20px); } /* Burger */
+                                 45% { opacity: 1; transform: translateY(0); }
+                                 60% { opacity: 1; transform: translateY(0); }
+                                 70% { opacity: 0; transform: translateY(-20px); }
+
+                                 70.01% { content: '\f0c4'; opacity: 0; transform: translateY(20px); } /* Cut */
+                                 80% { opacity: 1; transform: translateY(0); }
+                                 95% { opacity: 1; transform: translateY(0); }
+                                 100% { opacity: 0; transform: translateY(-20px); }
+                             }
+                         </style>
                     </div>
                     
-                    <!-- Personalized Header -->
+                    <!-- Text Group -->
                     <div class="loader-text-group">
-                        <div class="loader-label">DESIGNING STRATEGY FOR</div>
-                        <div class="loader-brand" id="loader-store-name">Your Business</div>
-                        <div class="status-msg-dynamic" id="status-dynamic">Initializing Scanner...</div>
+                        <div class="loader-brand" id="loader-store-name" style="font-size: 18px; margin-bottom: 5px;">Your Business</div>
+                        <div class="status-msg-dynamic" id="status-dynamic" style="color: var(--text-sub); font-family: 'Manrope', sans-serif;">Cooking up strategies...</div>
                     </div>
 
-                    <!-- Progress Bar -->
-                    <div class="progress-container">
-                        <div class="progress-bar-fill" id="loader-progress"></div>
+                    <!-- Sleek Progress -->
+                    <div class="progress-container" style="background: rgba(125,125,125,0.1); width: 150px; height: 3px;">
+                        <div class="progress-bar-fill" id="loader-progress" style="background: var(--text-main); box-shadow: none;"></div>
                     </div>
-
-                    <!-- Tech Graphic / Data Crunching -->
-                    <div class="model-status-box">
-                        <div class="ms-row">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span class="ms-dot"></span>
-                                <span style="font-size:10px; color:var(--text-sub); opacity:0.8;">AI MODEL</span>
-                            </div>
-                            <span class="ms-model" id="loader-model-text">GEMINI 2.5 FLASH</span>
-                        </div>
-                        <div class="ms-terminal" id="loader-terminal">
-                            <!-- JS injects lines here -->
-                            <span class="term-line">> initializing_neural_net...</span>
-                        </div>
-                    </div>
-
-                    <div class="quote-container">
+                    
+                    <!-- Quote at bottom -->
+                    <div class="quote-container" style="position: absolute; bottom: 50px;">
                         <div id="loader-quote" class="quote-text"></div>
                     </div>
                 </div>
@@ -536,9 +512,25 @@
             <!-- PAGE 3: STRATEGY -->
             <div id="view-strategy" class="page">
                 <div id="strategy-input-panel" class="card">
-                    <div style="font-weight: 700; font-size: 18px; margin-bottom: 5px;">Create Brand Strategy</div>
-                    <div style="font-size: 13px; color: var(--text-sub); margin-bottom: 20px;">AI will benchmark <b id="strategy-store-name">your store</b>.</div>
+                    <!-- NEW HEADER WITH TOGGLE -->
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                        <div>
+                            <div style="font-weight: 700; font-size: 18px;">Create Strategy</div>
+                            <div style="font-size: 13px; color: var(--text-sub);">AI will benchmark prices & deals.</div>
+                        </div>
+                        
+                        <!-- TOGGLE BUTTON -->
+                        <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                            <label class="switch">
+                                <input type="checkbox" id="skip-details-toggle">
+                                <span class="slider round"></span>
+                            </label>
+                            <span style="font-size: 9px; font-weight: 700; margin-top: 5px; color: var(--text-sub);">QUICK MODE</span>
+                        </div>
+                    </div>
+                    
                     <textarea id="menu-text" rows="5" placeholder="Paste menu items...&#10;e.g. Chicken Burger 250&#10;Veg Pizza 400"></textarea>
+                    
                     <div style="display: flex; gap: 12px; margin-top: 15px;">
                         <button class="btn btn-black ripple-effect" style="flex: 1;" onclick="app.startAnalysis()">Analyze Menu</button>
                         <button class="btn ripple-effect" style="flex: 1; background: var(--bg-input); color: var(--text-main);" onclick="document.getElementById('file-in').click()">
@@ -633,5 +625,4 @@
     <script src="./script.js"></script>
 </body>
 </html>
-
 
