@@ -269,7 +269,7 @@
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             animation: bounceSoft 2s infinite ease-in-out;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             position: relative;
             overflow: hidden;
         }
@@ -310,12 +310,12 @@
 
         /* Progress Bar */
         .progress-container {
-            width: 80%;
-            max-width: 300px;
-            height: 4px;
+            width: 60%;
+            max-width: 200px;
+            height: 3px;
             background: rgba(255,255,255,0.1);
             border-radius: 4px;
-            margin-top: 20px;
+            margin-top: 15px;
             overflow: hidden;
             position: relative;
         }
@@ -329,19 +329,35 @@
         }
 
         /* Dynamic Status Text */
-        .loader-text-group { text-align: center; margin-bottom: 30px; }
+        .loader-text-group { text-align: center; margin-bottom: 20px; }
         .loader-brand { 
-            font-size: 22px; font-weight: 700; color: var(--text-main); 
-            letter-spacing: 0.5px; font-family: 'Manrope', sans-serif; 
+            font-size: 20px; font-weight: 800; color: var(--text-main); 
+            letter-spacing: -0.5px; margin-bottom: 5px;
         }
         .status-msg-dynamic {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
+            font-size: 11px;
             color: var(--brand);
-            margin-top: 10px;
-            min-height: 20px;
             font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
+        .model-active-badge {
+            background: rgba(255, 87, 34, 0.1);
+            color: var(--brand);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 10px;
+            border: 1px solid rgba(255, 87, 34, 0.2);
+            animation: fadeIn 0.5s;
+        }
+        .model-active-badge i { font-size: 8px; animation: spin 2s infinite linear; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
         
         .quote-container { margin-top: 30px; text-align: center; max-width: 80%; opacity: 0.5; }
         .quote-text { font-size: 12px; color: var(--text-sub); font-style: italic; }
@@ -361,6 +377,15 @@
         .hf-badge { display: inline-block; padding: 4px 8px; background: #4285F4; color: #fff; border-radius: 4px; font-weight: 800; font-size: 10px; margin-bottom: 10px; }
         .pulse-red { color: var(--danger); animation: pulse-red 1s infinite; }
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(255, 61, 0, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(255, 61, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 61, 0, 0); } }
+
+        /* KEY MANAGER MODEL INFO */
+        .model-info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--border-color); font-size: 11px; }
+        .model-name { font-weight: 700; color: var(--text-main); }
+        .model-limit { color: var(--text-sub); }
+
+        /* ERROR MODAL */
+        .error-icon-box { width: 60px; height: 60px; background: rgba(255, 61, 0, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto; color: var(--danger); font-size: 24px; animation: shake 0.5s ease; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 
         /* PRINT STYLES */
         @media print {
@@ -414,8 +439,7 @@
                 <div class="loader-content">
                     <!-- Bouncing Icon Box -->
                     <div class="icon-shuffle-box">
-                         <!-- Pure CSS Icon swapping using pseudo elements in animation -->
-                         <i class="fa fa-utensils shuffle-icon" style="animation: none;"></i> <!-- Fallback -->
+                         <i class="fa fa-utensils shuffle-icon" style="animation: none;"></i>
                          <style>
                              .shuffle-icon::before {
                                  content: '\f2e7'; /* Utensils */
@@ -426,12 +450,10 @@
                                  10% { opacity: 1; transform: translateY(0); }
                                  25% { opacity: 1; transform: translateY(0); }
                                  35% { opacity: 0; transform: translateY(-20px); }
-                                 
                                  35.01% { content: '\f805'; opacity: 0; transform: translateY(20px); } /* Burger */
                                  45% { opacity: 1; transform: translateY(0); }
                                  60% { opacity: 1; transform: translateY(0); }
                                  70% { opacity: 0; transform: translateY(-20px); }
-
                                  70.01% { content: '\f0c4'; opacity: 0; transform: translateY(20px); } /* Cut */
                                  80% { opacity: 1; transform: translateY(0); }
                                  95% { opacity: 1; transform: translateY(0); }
@@ -442,13 +464,19 @@
                     
                     <!-- Text Group -->
                     <div class="loader-text-group">
-                        <div class="loader-brand" id="loader-store-name" style="font-size: 18px; margin-bottom: 5px;">Your Business</div>
-                        <div class="status-msg-dynamic" id="status-dynamic" style="color: var(--text-sub); font-family: 'Manrope', sans-serif;">Cooking up strategies...</div>
+                        <div class="loader-brand" id="loader-store-name">Your Business</div>
+                        <div class="status-msg-dynamic" id="status-dynamic">Cooking up strategies...</div>
+                        
+                        <!-- NEW ACTIVE MODEL BADGE -->
+                        <div id="loader-active-model" class="model-active-badge" style="display: none;">
+                            <i class="fa fa-circle-notch"></i>
+                            <span id="model-name-text">Gemini 1.5 Flash</span>
+                        </div>
                     </div>
 
                     <!-- Sleek Progress -->
-                    <div class="progress-container" style="background: rgba(125,125,125,0.1); width: 150px; height: 3px;">
-                        <div class="progress-bar-fill" id="loader-progress" style="background: var(--text-main); box-shadow: none;"></div>
+                    <div class="progress-container">
+                        <div class="progress-bar-fill" id="loader-progress"></div>
                     </div>
                     
                     <!-- Quote at bottom -->
@@ -458,13 +486,16 @@
                 </div>
             </div>
 
-            <!-- COOLDOWN -->
-            <div id="cooldown-overlay" class="loader-overlay" style="display: none; background: rgba(0,0,0,0.98);">
-                <div class="brand-pulse pulse-red" style="margin-bottom: 30px;"><i class="fa fa-clock"></i></div>
-                <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 8px; color: var(--danger);">AI Needs a Break</h2>
-                <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 20px;">Free tier limit reached.</p>
-                <div style="font-size: 50px; font-weight: 800; color: #fff;" id="cooldown-timer">60</div>
-                <p style="font-size: 11px; color: var(--text-sub); margin-top: 20px; opacity: 0.5;">Optimizing for free usage...</p>
+            <!-- SYSTEM ERROR MODAL -->
+            <div class="modal-overlay" id="error-modal" style="z-index: 2500;">
+                <div class="modal-box" onclick="event.stopPropagation()">
+                    <div class="error-icon-box">
+                        <i class="fa fa-exclamation-triangle"></i>
+                    </div>
+                    <h3 id="error-title" style="margin:0 0 10px 0; font-weight: 800;">Connection Issue</h3>
+                    <p id="error-desc" style="font-size:13px; color:var(--text-sub); margin-bottom:20px; line-height: 1.5;">Something went wrong.</p>
+                    <button class="btn btn-black ripple-effect" onclick="document.getElementById('error-modal').style.display='none'">Try Again</button>
+                </div>
             </div>
 
             <!-- PAGE 1: INPUT -->
@@ -613,10 +644,30 @@
             <div class="modal-box" onclick="event.stopPropagation()">
                 <div class="hf-badge" style="background:#FFC107; color:#000;">KEY MANAGER</div>
                 <h3 style="margin:0 0 10px 0; font-weight: 800;">Manage API Keys</h3>
-                <p style="font-size:13px; color:var(--text-sub); margin-bottom:20px;">Add up to 5 keys. We will rotate them to keep you on the Best Model.</p>
+                <p style="font-size:13px; color:var(--text-sub); margin-bottom:20px;">Add keys to rotate. AI chooses the best available model.</p>
+                
                 <div id="key-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
                     <!-- JS Injects Inputs Here -->
                 </div>
+
+                <!-- NEW MODEL INTEL SECTION -->
+                <div style="background: var(--bg-input); border-radius: 12px; padding: 15px; text-align: left; margin-bottom: 20px;">
+                    <div style="font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 8px;">MODEL INTELLIGENCE</div>
+                    
+                    <div class="model-info-row">
+                        <span class="model-name">Gemini 1.5 Flash</span>
+                        <span class="model-limit">~15 RPM (High Speed)</span>
+                    </div>
+                    <div class="model-info-row">
+                        <span class="model-name">Gemini 2.5 Flash</span>
+                        <span class="model-limit">Experimental (Std Speed)</span>
+                    </div>
+                     <div class="model-info-row" style="border-bottom: none;">
+                        <span class="model-name">Gemini 3 Pro</span>
+                        <span class="model-limit">~2 RPM (High IQ)</span>
+                    </div>
+                </div>
+
                 <button class="btn btn-brand ripple-effect" onclick="window.app.saveKeys()">Save Keys</button>
             </div>
         </div>
@@ -625,4 +676,5 @@
     <script src="./script.js"></script>
 </body>
 </html>
+
 
