@@ -750,6 +750,7 @@ window.app = {
            - TITLES: Catchy, Hinglish or trendy.
            - STRUCTURE: 'items' array (REQUIRED for Quick Mode and Full Mode).
            - Gold Value ~10-15% of deal_price.
+           - IMPORTANT: Even in Quick Mode, you MUST invent creative titles (e.g. 'Bahubali Thali', 'Monsoon Masti') and list specific menu items with prices in the 'items' array. Do not be lazy.
         2. 5 Gold Vouchers.
         3. Physical Repeat Card.
         OUTPUT JSON: { "deals": [{"title": "string", "deal_price": number, "gold": number, "items": [{"name": "string", "price": number}]}], "vouchers": [{"threshold": number, "amount": number, "desc": "string"}], "repeatCard": {...} }`;
@@ -777,8 +778,18 @@ window.app = {
                     d.items = [{name: d.items, price: d.deal_price}];
                 } else if (Array.isArray(d.items)) {
                     const totalRealVal = d.items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+                    // Force alignment: Deal Price (Customer Pays) = Sum of Items (Real Value)
                     if (totalRealVal > 0) d.deal_price = totalRealVal; 
                 }
+                
+                // Fallback for lazy AI in Quick Mode
+                if (!d.items || d.items.length === 0) {
+                     d.items = [
+                        {name: "Main Dish", price: Math.round(d.deal_price * 0.7)},
+                        {name: "Side/Drink", price: Math.round(d.deal_price * 0.3)}
+                     ];
+                }
+                
                 return d;
             });
 
@@ -946,4 +957,4 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', window.app.init);
 } else {
     window.app.init();
-            }
+    }
