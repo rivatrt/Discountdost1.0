@@ -1,672 +1,960 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#000000">
-    
-    <!-- PWA: iOS Specific -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Discount Dost">
-    
-    <title>Discount Dost</title>
-    
-    <!-- PUTER.JS (Free AI Fallback Tier) -->
-    <script src="https://js.puter.com/v2/"></script>
-    
-    <!-- FAVICON -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjkwIiBmaWxsPSIjMDAwMDAwIi8+PHBhdGggZD0iTTE2NSAxMTAgSCAyNjUgQyAzNTUgMTEwIDQxNSAxNzUgNDE1IDI1NiBDIDQxNSAzMzcgMzU1IDQwMiAyNjUgNDAyIEggMTY1IFYgMTEwIFogTSAyMjUgMTcwIFYgMzQyIEggMjY1IEMgMzE1IDM0MiAzNTUgMzA1IDM1NSAyNTYgQyAzNTUgMjA3IDMxNSAxNzAgMjY1IDE3MCBVIDIyNSBaIiBmaWxsPSIjRkZDMTA3Ii8+PC9zdmc+">
-    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjkwIiBmaWxsPSIjMDAwMDAwIi8+PHBhdGggZD0iTTE2NSAxMTAgSCAyNjUgQyAzNTUgMTEwIDQxNSAxNzUgNDE1IDI1NiBDIDQxNSAzMzcgMzU1IDQwMiAyNjUgNDAyIEggMTY1IFYgMTEwIFogTSAyMjUgMTcwIFYgMzQyIEggMjY1IEMgMzE1IDM0MiAzNTUgMzA1IDM1NSAyNTYgQyAzNTUgMjA3IDMxNSAxNzAgMjY1IDE3MCBVIDIyNSBaIiBmaWxsPSIjRkZDMTA3Ii8+PC9zdmc+">
-    <link rel="manifest" href="./manifest.json">
-    
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        :root {
-            --bg-body: #000000;
-            --bg-surface: #1c1c1e;
-            --bg-glass: rgba(28, 28, 30, 0.95);
-            --bg-input: #2c2c2e;
-            --primary: #ffffff;
-            --text-main: #ffffff;
-            --text-sub: #98989f;
-            --brand: #FF5722;
-            --brand-gradient: linear-gradient(135deg, #FF5722, #FF8A65);
-            --brand-soft: rgba(255, 87, 34, 0.25);
-            --gold-main: #FFB300;
-            --gold-grad: linear-gradient(135deg, #FFC107 0%, #FF9800 100%);
-            --success: #00C853;
-            --success-bg: rgba(0, 200, 83, 0.2);
-            --danger: #FF3D00;
-            --danger-bg: rgba(255, 61, 0, 0.2);
-            --shadow-card: none;
-            --shadow-header: 0 4px 15px rgba(0,0,0,0.5);
-            --border-color: rgba(255,255,255,0.08);
-            --radius-xl: 26px;
-            --radius-l: 20px;
-            --nav-height: 80px;
-            --ease-oneui: cubic-bezier(0.22, 1, 0.36, 1);
-            --safe-top: env(safe-area-inset-top, 0px);
-            --safe-bottom: env(safe-area-inset-bottom, 0px);
-            --modal-overlay: rgba(0,0,0,0.8);
-        }
+// --- CONSTANTS ---
+const CATEGORIES = [
+    { id: 'Restaurant', icon: 'fa-utensils', label: 'Restaurant', brandRef: "Swiggy/Zomato top brands like Domino's" },
+    { id: 'Cafe', icon: 'fa-coffee', label: 'Cafe', brandRef: "Starbucks or Third Wave Coffee" },
+    { id: 'Retail', icon: 'fa-shopping-bag', label: 'Retail', brandRef: "Westside or H&M" },
+    { id: 'Salon', icon: 'fa-cut', label: 'Salon', brandRef: "Lakme or Toni & Guy" }, 
+    { id: 'Electronics', icon: 'fa-mobile-alt', label: 'Electronics', brandRef: "Croma or Reliance Digital" },
+    { id: 'Grocery', icon: 'fa-carrot', label: 'Grocery', brandRef: "Zepto or Blinkit" },
+    { id: 'Clothing', icon: 'fa-tshirt', label: 'Fashion', brandRef: "Zara or Myntra" },
+    { id: 'Gym', icon: 'fa-dumbbell', label: 'Gym', brandRef: "Cult.fit" },
+    { id: 'Jewelry', icon: 'fa-gem', label: 'Jewelry', brandRef: "Tanishq" },
+    { id: 'Other', icon: 'fa-store', label: 'Other', brandRef: "premium loyalty programs" }
+];
 
-        body.light-mode {
-            --bg-body: #f2f2f7;
-            --bg-surface: #ffffff;
-            --bg-glass: rgba(255, 255, 255, 0.85);
-            --bg-input: #e5e5ea;
-            --primary: #000000;
-            --text-main: #1c1c1e;
-            --text-sub: #8e8e93;
-            --success-bg: #E8F5E9;
-            --danger-bg: #FFEBEE;
-            --shadow-card: 0 8px 30px rgba(0,0,0,0.06);
-            --shadow-header: 0 4px 20px rgba(0,0,0,0.05);
-            --border-color: rgba(0,0,0,0.08);
-            --brand-soft: rgba(255, 87, 34, 0.1);
-            --modal-overlay: rgba(0,0,0,0.4);
-        }
+const MERCHANT_TIPS = [
+    "Increasing customer retention by just 5% can boost profits by 25% to 95%.",
+    "65% of a company's business comes from existing customers.",
+    "Repeat customers spend 67% more than new customers.",
+    "A 2% increase in customer retention has the same effect as decreasing costs by 10%.",
+    "It costs 5x more to acquire a new customer than to keep an existing one.",
+    "Loyal customers are 50% more likely to try new products.",
+    "Personalized rewards increase redemption rates by 6x."
+];
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; user-select: none; }
+// --- APP STATE ---
+const state = {
+    page: 1,
+    category: CATEGORIES[0],
+    storeName: "",
+    visits: "",
+    aov: "",
+    discount: "",
+    isDark: true,
+    apiKeys: [], 
+    hfToken: "", 
+    keyHistory: {}, 
+    strategy: null,
+    groundingSources: [],
+    loaderInterval: null,
+    terminalInterval: null,
+    timerInterval: null,
+    loaderProgress: 0,
+    manualItems: [{name:"", price:""}, {name:"", price:""}, {name:"", price:""}],
+    installPrompt: null,
+    cooldownTimer: null
+};
+
+// MODEL CONFIG
+const AI_MODELS = [
+    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', rpm: 15, rpd: 1500, tpm: 1000000 },
+    { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', rpm: 15, rpd: 1500, tpm: 1000000 },
+    { id: 'gemini-1.5-pro',   label: 'Gemini 1.5 Pro',   rpm: 2,  rpd: 50,   tpm: 32000 }
+];
+
+// --- INITIALIZATION ---
+try {
+    const storedKeys = localStorage.getItem('discount_dost_gemini_keys');
+    if (storedKeys) state.apiKeys = JSON.parse(storedKeys);
+    else {
+        const single = localStorage.getItem('discount_dost_gemini_key');
+        if (single) state.apiKeys = [single];
+    }
+
+    const storedHf = localStorage.getItem('discount_dost_hf_token');
+    if (storedHf) state.hfToken = storedHf;
+
+    const storedHistory = localStorage.getItem('discount_dost_key_history');
+    if (storedHistory) state.keyHistory = JSON.parse(storedHistory);
+
+} catch (e) {
+    console.warn("Storage access error");
+}
+
+// --- ACCURATE TRACKING ENGINE ---
+window.tracker = {
+    logRequest: (key, tokenCount) => {
+        if (!state.keyHistory[key]) state.keyHistory[key] = [];
+        state.keyHistory[key].push({ ts: Date.now(), tokens: tokenCount });
+        window.tracker.cleanup(key); 
+        localStorage.setItem('discount_dost_key_history', JSON.stringify(state.keyHistory));
+    },
+
+    cleanup: (key) => {
+        const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+        if (state.keyHistory[key]) {
+            state.keyHistory[key] = state.keyHistory[key].filter(log => log.ts > oneDayAgo);
+        }
+    },
+
+    getStats: (key) => {
+        const history = state.keyHistory[key] || [];
+        const now = Date.now();
+        const oneMinAgo = now - 60000;
+        const reqsLastMin = history.filter(log => log.ts > oneMinAgo).length;
+        const tokensLastMin = history.filter(log => log.ts > oneMinAgo).reduce((sum, log) => sum + (log.tokens || 0), 0);
+        const midnight = new Date();
+        midnight.setHours(0,0,0,0);
+        const reqsToday = history.filter(log => log.ts > midnight.getTime()).length;
+
+        return { rpm: reqsLastMin, tpm: tokensLastMin, rpd: reqsToday, dailyLimit: 1500, rpmLimit: 15 };
+    },
+
+    isRateLimited: (key, modelRPM, modelRPD) => {
+        const stats = window.tracker.getStats(key);
+        if (stats.rpm >= modelRPM) return `RPM Limit (${stats.rpm}/${modelRPM})`;
+        if (stats.rpd >= modelRPD) return `Daily Limit (${stats.rpd}/${modelRPD})`;
+        return false;
+    }
+};
+
+// --- APP CONTROLLER ---
+window.app = {
+    init: () => {
+        try {
+            document.body.classList.add('dark-mode');
+            window.app.renderCategoryGrid();
+            window.app.renderManualInputs();
+            
+            window.history.replaceState({page: 1}, "", "");
+            window.addEventListener('popstate', (event) => {
+                if (event.state && event.state.page) window.app.renderPage(event.state.page);
+            });
+
+            if (state.apiKeys.length > 0) {
+                const modal = document.getElementById('api-key-modal');
+                if(modal) modal.style.display = 'none';
+            }
+
+            ['store', 'visits', 'aov', 'discount'].forEach(id => {
+                const el = document.getElementById(`inp-${id}`);
+                if(el) el.addEventListener('input', (e) => state[id === 'store' ? 'storeName' : id] = e.target.value);
+            });
+
+        } catch (err) { console.error("Init error:", err); }
+    },
+
+    // --- KEY MANAGER UI ---
+    openKeyManager: () => {
+        const modal = document.getElementById('key-manager-modal');
+        const list = document.getElementById('key-list');
+        const hfInput = document.getElementById('hf-key-input');
         
-        body { margin: 0; padding: 0; font-family: 'Manrope', sans-serif; background-color: var(--bg-body); color: var(--text-main); height: 100vh; overflow: hidden; transition: background-color 0.3s ease; }
-
-        /* HEADER */
-        header { 
-            position: fixed; top: 0; left: 0; right: 0; z-index: 500; 
-            padding: 0 24px; height: calc(160px + var(--safe-top)); 
-            padding-top: var(--safe-top);
-            background-color: var(--bg-body); 
-            display: flex; flex-direction: column; justify-content: flex-end; 
-            transition: height 0.4s var(--ease-oneui), background-color 0.3s ease; 
-        }
-        header.shrink { 
-            height: calc(70px + var(--safe-top)); 
-            background-color: var(--bg-glass); 
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); 
-            border-bottom: 1px solid var(--border-color); 
-            box-shadow: var(--shadow-header); 
-        }
+        list.innerHTML = '';
+        if (hfInput) hfInput.value = state.hfToken || '';
         
-        .header-top-row { 
-            position: absolute; 
-            top: calc(15px + var(--safe-top)); 
-            left: 24px; right: 24px; 
-            display: flex; justify-content: space-between; align-items: center; 
-            z-index: 502; 
-        }
-        
-        .header-content-wrapper { 
-            margin-bottom: 20px; 
-            transition: transform 0.4s var(--ease-oneui), opacity 0.3s ease; 
-            transform-origin: left bottom; 
-            pointer-events: auto; /* Ensure clickable */
-        }
+        for (let i = 0; i < 5; i++) {
+            const val = state.apiKeys[i] || '';
+            let statsHtml = '';
 
-        /* PREMIUM LOGO & HIDDEN MENU TRIGGER */
-        .brand-pill { 
-            display: inline-flex; align-items: center; gap: 8px; 
-            padding: 4px 12px 4px 4px; background: var(--bg-surface); 
-            border-radius: 30px; color: var(--text-main); 
-            font-size: 11px; font-weight: 800; 
-            text-transform: uppercase; letter-spacing: 0.5px; 
-            margin-bottom: 8px; border: 1px solid var(--border-color); 
-            transition: all 0.3s var(--ease-oneui); opacity: 1; transform: translateY(0);
-            cursor: pointer; 
-            position: relative; 
-            z-index: 1001; /* High Z to ensure clickable */
-            user-select: none;
-            -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
-        }
-        .brand-pill:active { transform: scale(0.95); opacity: 0.8; }
-        .logo-svg { width: 24px; height: 24px; border-radius: 6px; }
+            if (val.length > 10) {
+                const stats = window.tracker.getStats(val);
+                const rpmPct = Math.min((stats.rpm / 15) * 100, 100);
+                const rpdPct = Math.min((stats.rpd / 1500) * 100, 100);
+                const rpmColor = stats.rpm >= 15 ? '#FF3D00' : (stats.rpm >= 12 ? '#FFC107' : '#00E676');
+                const rpdColor = stats.rpd >= 1500 ? '#FF3D00' : '#4285F4';
 
-        h1 { font-size: 38px; font-weight: 800; margin: 0; letter-spacing: -1px; line-height: 1.1; transition: font-size 0.4s var(--ease-oneui); color: var(--text-main); }
-        
-        header.shrink .brand-pill { opacity: 0; transform: translateY(-10px); pointer-events: none; height: 0; margin: 0; padding: 0; border: none; }
-        header.shrink .header-content-wrapper { transform: translateY(10px); }
-        header.shrink h1 { font-size: 20px; }
-        
-        .icon-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--bg-input); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; color: var(--text-main); font-size: 16px; border: 1px solid transparent; }
-        .icon-btn:active { transform: scale(0.92); background: var(--bg-surface); }
-        
-        .back-btn { opacity: 0; pointer-events: none; transform: translateX(-10px); transition: 0.3s; }
-        .back-btn.visible { opacity: 1; pointer-events: auto; transform: translateX(0); }
-        
-        /* INSTALL BUTTON - HIDDEN BY DEFAULT */
-        .install-pill { 
-            background: var(--brand-gradient); 
-            color: white; 
-            padding: 0 16px; 
-            border-radius: 20px; 
-            font-size: 11px; 
-            font-weight: 800; 
-            height: 40px; 
-            display: none; /* Crucial: Only JS enables this */
-            align-items: center; 
-            gap: 8px; 
-            box-shadow: 0 4px 12px rgba(255, 87, 34, 0.4); 
-            cursor: pointer; 
-            transition: transform 0.2s ease;
-            white-space: nowrap;
-            z-index: 505; 
-        }
-        .install-pill:active { transform: scale(0.95); }
-        .install-pill i { font-size: 12px; }
-
-        /* MAIN */
-        main { 
-            position: fixed; top: 0; bottom: 0; left: 0; right: 0; 
-            overflow-y: auto; overflow-x: hidden; 
-            padding-top: calc(170px + var(--safe-top)); 
-            padding-bottom: calc(100px + var(--safe-bottom)); 
-            padding-left: 20px; padding-right: 20px; 
-            z-index: 10; scroll-behavior: smooth; 
-        }
-        main::-webkit-scrollbar { display: none; }
-
-        /* CARDS */
-        .card { background: var(--bg-surface); border-radius: var(--radius-xl); padding: 24px; margin-bottom: 16px; box-shadow: var(--shadow-card); border: 1px solid var(--border-color); animation: fadeUp 0.6s var(--ease-oneui); }
-        .input-group { margin-bottom: 20px; }
-        .input-group label { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-sub); margin-bottom: 8px; margin-left: 10px; letter-spacing: 0.5px; display: block; }
-        .cat-trigger, input, textarea { width: 100%; padding: 22px; background: var(--bg-input); border-radius: var(--radius-l); font-size: 18px; font-weight: 700; color: var(--text-main); border: 2px solid transparent; font-family: 'Manrope', sans-serif; transition: 0.3s; }
-        input:focus, textarea:focus { background: var(--bg-surface); border-color: var(--brand); }
-        .btn { width: 100%; padding: 22px; border-radius: var(--radius-l); border: none; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; position: relative; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-top: 15px; transition: transform 0.2s; }
-        .btn:active { transform: scale(0.97); }
-        .btn-black { background: var(--primary); color: var(--bg-body); }
-        .btn-brand { background: var(--brand-gradient); color: white; box-shadow: 0 15px 30px rgba(255, 87, 34, 0.3); }
-        .btn-gold { background: var(--gold-grad); color: #000; box-shadow: 0 15px 30px rgba(255, 193, 7, 0.3); }
-        .ripple-effect { position: relative; overflow: hidden; transform: translate3d(0, 0, 0); }
-
-        /* DEAL CARDS V2 */
-        .deal-card { transition: all 0.3s ease; cursor: pointer; position: relative; }
-        .deal-card-new { background: var(--bg-surface); border-radius: 20px; overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 20px; position: relative; box-shadow: var(--shadow-card); }
-        .deal-header { background: linear-gradient(to right, rgba(255,255,255,0.03), transparent); padding: 16px 20px; border-bottom: 1px dashed var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-        .deal-body { padding: 20px; }
-        .deal-tag { font-size: 10px; font-weight: 800; color: var(--gold-main); background: rgba(255, 179, 0, 0.1); padding: 4px 10px; border-radius: 20px; letter-spacing: 0.5px; text-transform: uppercase; border: 1px solid rgba(255, 179, 0, 0.2); }
-        .deal-price-box { background: var(--bg-input); border-radius: 12px; padding: 15px; display: flex; align-items: center; justify-content: space-between; margin-top: 15px; border: 1px solid var(--border-color); }
-        .price-label { font-size: 10px; color: var(--text-sub); text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
-        .math-breakdown { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out, opacity 0.3s ease; opacity: 0; background: rgba(0,0,0,0.2); }
-        .deal-card.expanded .math-breakdown { max-height: 800px; opacity: 1; border-top: 1px solid var(--border-color); }
-        .tap-hint { font-size: 10px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; }
-
-        /* MATH EDIT TABLES */
-        .math-row { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 10px 0; border-bottom: 1px dashed var(--border-color); }
-        .math-row:last-child { border-bottom: none; padding-bottom: 0; }
-        .math-label { font-size: 13px; color: var(--text-sub); display: flex; align-items: center; }
-        .math-val { font-size: 14px; font-weight: 700; color: var(--text-main); }
-        .edit-pct { 
-            border-bottom: 1px solid var(--brand); color: var(--brand); 
-            padding: 0 2px; margin: 0 4px; font-weight: 800; min-width: 24px; text-align: center; display: inline-block;
-        }
-        .val-gold { color: #FFB300; }
-        .val-fee, .val-gst { color: #FF5722; }
-        .val-net { color: #00E676; font-size: 18px; }
-
-        /* VOUCHER CARDS (GOLD) */
-        .voucher-card-gold { min-width: 260px; background: radial-gradient(circle at top left, #FFD54F, #FFB300); border-radius: 18px; padding: 20px; position: relative; scroll-snap-align: start; color: #000; box-shadow: 0 10px 20px rgba(255, 179, 0, 0.2); transition: 0.3s; cursor: pointer; }
-        .voucher-card-gold.expanded .math-breakdown { max-height: 300px; opacity: 1; margin-top: 15px; border-top: 1px solid rgba(0,0,0,0.1); }
-        
-        /* PHYSICAL REPEAT CARD UI */
-        .repeat-card-wrapper { margin-bottom: 20px; transition: transform 0.3s; }
-        .repeat-card-visual { background: linear-gradient(135deg, #1e1e1e, #000); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 24px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5); cursor: pointer; height: 180px; display: flex; flex-direction: column; justify-content: space-between; z-index: 2; }
-        .repeat-card-visual::after { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(rgba(255,255,255,0.05), transparent); transform: rotate(30deg); pointer-events: none; }
-        .rc-chip { width: 36px; height: 26px; background: linear-gradient(135deg, #FFC107, #FF9800); border-radius: 4px; margin-bottom: 10px; opacity: 0.8; box-shadow: inset 0 1px 4px rgba(0,0,0,0.3); border: 1px solid rgba(255,193,7,0.4); }
-        .rc-store-name { font-size: 18px; font-weight: 800; letter-spacing: 2px; color: #fff; text-transform: uppercase; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        .rc-offer-main { font-size: 13px; color: #ccc; margin-top: auto; letter-spacing: 0.5px; }
-        .gold-text { color: #FFB300; font-weight: 800; }
-        .rc-logo-corner { position: absolute; top: 20px; right: 20px; font-size: 20px; color: rgba(255,255,255,0.1); }
-        
-        /* Expansion logic for Repeat Card */
-        .repeat-card-wrapper .math-breakdown { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 0 0 16px 16px; margin-top: -15px; padding-top: 25px; position: relative; z-index: 1; transform: translateY(-10px); transition: 0.4s var(--ease-oneui); }
-        .repeat-card-wrapper.expanded .math-breakdown { max-height: 500px; opacity: 1; transform: translateY(0); }
-        
-        .rc-input-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 13px; padding: 0 5px; }
-        .rc-val-edit { background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 12px; border-radius: 8px; width: 90px; text-align: right; font-weight: 700; }
-
-        /* NAV */
-        .bottom-nav { 
-            position: fixed; bottom: 0; left: 0; right: 0; 
-            height: calc(var(--nav-height) + var(--safe-bottom)); 
-            padding-bottom: calc(20px + var(--safe-bottom));
-            background: var(--bg-glass); 
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); 
-            border-top: 1px solid var(--border-color); 
-            display: flex; justify-content: space-around; align-items: center; 
-            z-index: 600; 
-        }
-        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; color: var(--text-sub); transition: 0.3s; cursor: pointer; opacity: 0.5; }
-        .nav-item.active { color: var(--primary); opacity: 1; transform: translateY(-4px); }
-        .nav-icon-box { font-size: 20px; margin-bottom: 5px; width: 48px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 20px; transition: 0.3s; }
-        .nav-item.active .nav-icon-box { background: rgba(125,125,125,0.15); }
-
-        /* UTILS */
-        .page { display: none; }
-        .page.active { display: block; animation: fadeUp 0.5s var(--ease-oneui) forwards; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        .stagger-in { opacity: 0; animation: slideInUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; transform: translateY(30px); }
-        @keyframes slideInUp { to { opacity: 1; transform: translateY(0); } }
-
-        /* MODALS */
-        .modal-overlay, .api-key-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--modal-overlay); z-index: 1000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
-        .modal-box { background: var(--bg-surface); width: 85%; max-width: 380px; border-radius: 32px; padding: 32px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 1px solid var(--border-color); animation: popIn 0.3s var(--ease-oneui); }
-        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        
-        .modal-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-surface); border-top-left-radius: 32px; border-top-right-radius: 32px; padding: 30px 24px 50px 24px; transform: translateY(110%); transition: 0.5s var(--ease-oneui); z-index: 700; box-shadow: 0 -10px 40px rgba(0,0,0,0.5); max-height: 75vh; overflow-y: auto; border-top: 1px solid var(--border-color); padding-bottom: calc(50px + var(--safe-bottom)); }
-        .modal-sheet.open { transform: translateY(0); }
-        .modal-bg { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 650; display: none; opacity: 0; transition: opacity 0.3s; }
-        .modal-bg.open { display: block; opacity: 1; }
-        
-        .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
-        .cat-item { background: var(--bg-input); padding: 18px 8px; border-radius: 20px; text-align: center; border: 2px solid transparent; transition: 0.2s; color: var(--text-main); cursor: pointer; }
-        .cat-item.selected { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
-
-        /* --- NEW INTERACTIVE LOADER (Swiggy/Zomato Style) --- */
-        .icon-shuffle-box {
-            width: 80px; height: 80px;
-            background: #fff;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            animation: bounceSoft 2s infinite ease-in-out;
-            margin-bottom: 20px;
-            position: relative;
-            overflow: hidden;
-        }
-        @keyframes bounceSoft {
-            0%, 100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(-10px) scale(1.05); }
-        }
-        .shuffle-icon {
-            font-size: 35px;
-            color: #FF5722;
-            position: absolute;
-            animation: iconSwap 4s infinite step-end;
-        }
-        /* This simulates changing icons */
-        @keyframes iconSwap {
-            0% { content: '\f0f4'; font-family: "Font Awesome 6 Free"; font-weight: 900; } /* Coffee */
-            25% { content: '\f818'; font-family: "Font Awesome 6 Free"; font-weight: 900; } /* Burger */
-            50% { content: '\f290'; font-family: "Font Awesome 6 Free"; font-weight: 900; } /* Shopping Bag */
-            75% { content: '\f0c4'; font-family: "Font Awesome 6 Free"; font-weight: 900; } /* Cut/Salon */
-        }
-        /* Ensure the loader overlay is solid for this style */
-        .loader-overlay { 
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-            background: var(--bg-body); 
-            z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            animation: fadeIn 0.4s ease; 
-        }
-        .loader-overlay.modern {
-            background: var(--bg-body);
-            opacity: 0.98;
-            backdrop-filter: blur(20px);
-        }
-        
-        .loader-content {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            width: 100%;
-        }
-
-        /* Progress Bar */
-        .progress-container {
-            width: 60%;
-            max-width: 200px;
-            height: 3px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 4px;
-            margin-top: 15px;
-            overflow: hidden;
-            position: relative;
-        }
-        .progress-bar-fill {
-            position: absolute;
-            top: 0; left: 0; bottom: 0;
-            width: 0%;
-            background: var(--brand-gradient);
-            transition: width 0.3s ease;
-            box-shadow: 0 0 10px var(--brand);
-        }
-
-        /* Dynamic Status Text */
-        .loader-text-group { text-align: center; margin-bottom: 20px; }
-        .loader-brand { 
-            font-size: 20px; font-weight: 800; color: var(--text-main); 
-            letter-spacing: -0.5px; margin-bottom: 5px;
-        }
-        .status-msg-dynamic {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            color: var(--brand);
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .model-active-badge {
-            background: rgba(255, 87, 34, 0.1);
-            color: var(--brand);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 10px;
-            font-weight: 800;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 10px;
-            border: 1px solid rgba(255, 87, 34, 0.2);
-            animation: fadeIn 0.5s;
-        }
-        .model-active-badge i { font-size: 8px; animation: spin 2s infinite linear; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-        
-        .quote-container { margin-top: 30px; text-align: center; max-width: 80%; opacity: 0.5; }
-        .quote-text { font-size: 12px; color: var(--text-sub); font-style: italic; }
-
-        /* TOGGLE SWITCH CSS */
-        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-input); transition: .4s; border: 1px solid var(--border-color); }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 2px; bottom: 2px; background-color: var(--text-sub); transition: .4s; }
-        input:checked + .slider { background-color: var(--brand); border-color: var(--brand); }
-        input:checked + .slider:before { transform: translateX(20px); background-color: #fff; }
-        .slider.round { border-radius: 34px; }
-        .slider.round:before { border-radius: 50%; }
-
-        /* API KEY & COOLDOWN */
-        .api-key-input { margin: 15px 0; font-size: 14px; text-align: center; }
-        .hf-badge { display: inline-block; padding: 4px 8px; background: #4285F4; color: #fff; border-radius: 4px; font-weight: 800; font-size: 10px; margin-bottom: 10px; }
-        .pulse-red { color: var(--danger); animation: pulse-red 1s infinite; }
-        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(255, 61, 0, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(255, 61, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 61, 0, 0); } }
-
-        /* ERROR MODAL */
-        .error-icon-box { width: 60px; height: 60px; background: rgba(255, 61, 0, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto; color: var(--danger); font-size: 24px; animation: shake 0.5s ease; }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-
-        /* PRINT STYLES */
-        @media print {
-            header, .bottom-nav, .btn, .tap-hint, #view-input, #view-results, #strategy-input-panel { display: none !important; }
-            #view-strategy, #strategy-results { display: block !important; }
-            body, main { position: relative; height: auto; overflow: visible; background: #fff; color: #000; padding: 0; }
-            .card, .deal-card-new, .voucher-card-gold, .repeat-card-wrapper { break-inside: avoid; border: 1px solid #ccc; box-shadow: none; background: #fff !important; color: #000 !important; }
-            .deal-tag, .rc-badge { border: 1px solid #000; color: #000 !important; }
-            .deal-header, .rc-header { background: #f0f0f0 !important; }
-            .repeat-card-visual { background: #fff !important; border: 1px solid #000; color: #000 !important; height: auto; padding: 10px; }
-            .rc-store-name, .rc-offer-main, .gold-text { color: #000 !important; text-shadow: none !important; }
-            * { text-shadow: none !important; color: #000 !important; }
-            .math-breakdown { display: none !important; } /* Hide math details on print */
-        }
-    </style>
-</head>
-<body>
-    <div id="root">
-        <!-- HEADER -->
-        <header id="main-header">
-            <div class="header-top-row">
-                <div class="icon-btn back-btn" id="back-btn" onclick="app.goBack()">
-                    <i class="fa fa-arrow-left"></i>
-                </div>
-                <div style="display: flex; gap: 12px; align-items: center;">
-                    <div id="install-btn" class="install-pill" onclick="app.installPWA()">
-                        <i class="fa fa-download"></i> INSTALL APP
-                    </div>
-                    <div class="icon-btn" onclick="app.toggleTheme()">
-                        <i class="fa fa-moon" id="theme-icon"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="header-content-wrapper" id="header-content">
-                <div class="brand-pill" onclick="app.openKeyManager()">
-                    <!-- NEW PROFESSIONAL D LOGO -->
-                    <svg class="logo-svg" viewBox="0 0 512 512">
-                        <rect width="512" height="512" rx="90" fill="#000000"/>
-                        <path d="M165 110 H 265 C 355 110 415 175 415 256 C 415 337 355 402 265 402 H 165 V 110 Z M 225 170 V 342 H 265 C 315 342 355 305 355 256 C 355 207 315 170 265 170 H 225 Z" fill="#FFC107"/>
-                    </svg>
-                    Discount Dost
-                </div>
-                <h1 id="page-title">Business<br>Details</h1>
-            </div>
-        </header>
-
-        <!-- MAIN CONTENT -->
-        <main id="scroll-container" onscroll="app.handleScroll()">
-            <!-- NEW INTERACTIVE LOADER WITH TIMER -->
-            <div id="loader" class="loader-overlay modern" style="display: none;">
-                <div class="loader-content">
-                    <!-- Bouncing Icon Box -->
-                    <div class="icon-shuffle-box">
-                         <i class="fa fa-utensils shuffle-icon" style="animation: none;"></i>
-                         <style>
-                             .shuffle-icon::before {
-                                 content: '\f2e7'; /* Utensils */
-                                 animation: iconContentSwap 3s infinite;
-                             }
-                             @keyframes iconContentSwap {
-                                 0% { content: '\f0f4'; opacity: 0; transform: translateY(20px); } /* Coffee */
-                                 10% { opacity: 1; transform: translateY(0); }
-                                 25% { opacity: 1; transform: translateY(0); }
-                                 35% { opacity: 0; transform: translateY(-20px); }
-                                 35.01% { content: '\f805'; opacity: 0; transform: translateY(20px); } /* Burger */
-                                 45% { opacity: 1; transform: translateY(0); }
-                                 60% { opacity: 1; transform: translateY(0); }
-                                 70% { opacity: 0; transform: translateY(-20px); }
-                                 70.01% { content: '\f0c4'; opacity: 0; transform: translateY(20px); } /* Cut */
-                                 80% { opacity: 1; transform: translateY(0); }
-                                 95% { opacity: 1; transform: translateY(0); }
-                                 100% { opacity: 0; transform: translateY(-20px); }
-                             }
-                         </style>
-                    </div>
-                    
-                    <!-- Text Group -->
-                    <div class="loader-text-group">
-                        <div class="loader-brand" id="loader-store-name">Your Business</div>
-                        <div class="status-msg-dynamic" id="status-dynamic">Cooking up strategies...</div>
-                        
-                        <!-- REAL TIME COUNTDOWN TIMER -->
-                        <div id="loader-timer" style="font-size: 10px; font-weight: 700; color: var(--text-sub); margin-top: 5px; opacity: 0.8;"></div>
-                        
-                        <!-- NEW ACTIVE MODEL BADGE -->
-                        <div id="loader-active-model" class="model-active-badge" style="display: none;">
-                            <i class="fa fa-circle-notch"></i>
-                            <span id="model-name-text">Gemini 1.5 Flash</span>
+                statsHtml = `
+                    <div style="margin-top:5px; margin-bottom:15px; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                            <span style="font-size:10px; font-weight:700; color:${rpmColor}">RPM (Speed): ${stats.rpm}/15</span>
+                            <span style="font-size:10px; color:var(--text-sub);">Tokens/min: ${stats.tpm.toLocaleString()}</span>
+                        </div>
+                        <div style="height:4px; background:rgba(0,0,0,0.3); border-radius:2px; overflow:hidden; margin-bottom:8px;">
+                            <div style="width:${rpmPct}%; background:${rpmColor}; height:100%; transition:width 0.3s;"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                            <span style="font-size:10px; font-weight:700; color:var(--text-main);">Daily Usage: ${stats.rpd}/1500</span>
+                        </div>
+                        <div style="height:4px; background:rgba(0,0,0,0.3); border-radius:2px; overflow:hidden;">
+                            <div style="width:${rpdPct}%; background:${rpdColor}; height:100%; transition:width 0.3s;"></div>
                         </div>
                     </div>
+                `;
+            }
 
-                    <!-- Sleek Progress -->
-                    <div class="progress-container">
-                        <div class="progress-bar-fill" id="loader-progress"></div>
-                    </div>
-                    
-                    <!-- Quote at bottom -->
-                    <div class="quote-container" style="position: absolute; bottom: 50px;">
-                        <div id="loader-quote" class="quote-text"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SYSTEM ERROR MODAL -->
-            <div class="modal-overlay" id="error-modal" style="z-index: 2500;">
-                <div class="modal-box" onclick="event.stopPropagation()">
-                    <div class="error-icon-box">
-                        <i class="fa fa-exclamation-triangle"></i>
-                    </div>
-                    <h3 id="error-title" style="margin:0 0 10px 0; font-weight: 800;">Connection Issue</h3>
-                    <p id="error-desc" style="font-size:13px; color:var(--text-sub); margin-bottom:20px; line-height: 1.5;">Something went wrong.</p>
-                    <button class="btn btn-black ripple-effect" onclick="document.getElementById('error-modal').style.display='none'">Try Again</button>
-                </div>
-            </div>
-
-            <!-- PAGE 1: INPUT -->
-            <div id="view-input" class="page active">
-                <div class="card">
-                    <div class="input-group">
-                        <label>Store Name</label>
-                        <input type="text" id="inp-store" placeholder="e.g. Cafe Blue">
-                    </div>
-                    <div class="input-group">
-                        <label>Business Category</label>
-                        <div class="cat-trigger ripple-effect" onclick="app.openCatModal()">
-                            <span id="txt-category">Restaurant</span>
-                            <i class="fa fa-chevron-down" style="float: right; opacity: 0.3; margin-top: 4px;"></i>
-                        </div>
-                    </div>
-                    <div class="input-group">
-                        <label>Daily Customer Visits</label>
-                        <input type="tel" id="inp-visits" placeholder="e.g. 50">
-                    </div>
-                    <div class="input-group">
-                        <label>Average Bill Value (₹)</label>
-                        <input type="tel" id="inp-aov" placeholder="e.g. 1500">
-                    </div>
-                    <div class="input-group">
-                        <label>Current Discount (%)</label>
-                        <input type="tel" id="inp-discount" placeholder="e.g. 15">
-                    </div>
-                </div>
-                <button class="btn btn-black ripple-effect" onclick="app.validateAndNav(2)">
-                    Analyze Impact <i class="fa fa-arrow-right"></i>
-                </button>
-                <div style="height: 20px;"></div>
-            </div>
-
-            <!-- PAGE 2: RESULTS -->
-            <div id="view-results" class="page">
-                <div id="results-container"></div>
-                <button class="btn btn-gold ripple-effect" onclick="app.navTo(3)">
-                    Generate Brand Strategy <i class="fa fa-magic"></i>
-                </button>
-                <div style="height: 20px;"></div>
-            </div>
-
-            <!-- PAGE 3: STRATEGY -->
-            <div id="view-strategy" class="page">
-                <div id="strategy-input-panel" class="card">
-                    <!-- NEW HEADER WITH TOGGLE -->
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-                        <div>
-                            <div style="font-weight: 700; font-size: 18px;">Create Strategy</div>
-                            <div style="font-size: 13px; color: var(--text-sub);">AI will benchmark prices & deals.</div>
-                        </div>
-                        
-                        <!-- TOGGLE BUTTON -->
-                        <div style="display: flex; flex-direction: column; align-items: flex-end;">
-                            <label class="switch">
-                                <input type="checkbox" id="skip-details-toggle">
-                                <span class="slider round"></span>
-                            </label>
-                            <span style="font-size: 9px; font-weight: 700; margin-top: 5px; color: var(--text-sub);">QUICK MODE</span>
-                        </div>
-                    </div>
-                    
-                    <textarea id="menu-text" rows="5" placeholder="Paste menu items...&#10;e.g. Chicken Burger 250&#10;Veg Pizza 400"></textarea>
-                    
-                    <div style="display: flex; gap: 12px; margin-top: 15px;">
-                        <button class="btn btn-black ripple-effect" style="flex: 1;" onclick="app.startAnalysis()">Analyze Menu</button>
-                        <button class="btn ripple-effect" style="flex: 1; background: var(--bg-input); color: var(--text-main);" onclick="document.getElementById('file-in').click()">
-                            <i class="fa fa-camera"></i> Scan
-                        </button>
-                    </div>
-                    <div style="text-align: center; margin-top: 15px;">
-                         <span style="font-size: 12px; color: var(--text-sub); text-decoration: underline; cursor: pointer;" onclick="app.openManualModal()">Or enter items manually</span>
-                    </div>
-                    <!-- MULTIPLE FILE INPUT -->
-                    <input type="file" id="file-in" style="display: none;" multiple accept="image/*,application/pdf" onchange="app.handleFile(this)">
-                </div>
-
-                <div id="strategy-results" style="padding-bottom: 50px; display: none;"></div>
-            </div>
-        </main>
-
-        <!-- BOTTOM NAV -->
-        <nav class="bottom-nav">
-            <div class="nav-item active" id="nav-1" onclick="app.navTo(1)">
-                <div class="nav-icon-box"><i class="fa fa-calculator"></i></div>
-                <span style="font-size: 10px; font-weight: 700;">Input</span>
-            </div>
-            <div class="nav-item" id="nav-2" onclick="app.navTo(2)">
-                <div class="nav-icon-box"><i class="fa fa-chart-pie"></i></div>
-                <span style="font-size: 10px; font-weight: 700;">Results</span>
-            </div>
-            <div class="nav-item" id="nav-3" onclick="app.navTo(3)">
-                <div class="nav-icon-box"><i class="fa fa-chess"></i></div>
-                <span style="font-size: 10px; font-weight: 700;">Strategy</span>
-            </div>
-        </nav>
-
-        <!-- CATEGORY MODAL -->
-        <div class="modal-bg" id="cat-modal-bg" onclick="app.closeCatModal()"></div>
-        <div class="modal-sheet" id="cat-modal-sheet">
-            <div style="width: 40px; height: 5px; background: rgba(125,125,125,0.3); border-radius: 10px; margin: 0 auto 20px auto;"></div>
-            <div style="font-size: 20px; font-weight: 800; text-align: center; margin-bottom: 10px;">Select Category</div>
-            <div class="cat-grid" id="cat-grid"></div>
-        </div>
-
-        <!-- MANUAL ENTRY MODAL -->
-        <div class="modal-overlay" id="manual-modal" onclick="app.closeManualModal()">
-            <div class="modal-box" onclick="event.stopPropagation()">
-                <div style="width:60px; height:60px; background:var(--bg-input); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px auto;">
-                    <i class="fa fa-pen" style="color:var(--brand); font-size:24px;"></i>
-                </div>
-                <h3 style="margin:0 0 10px 0; font-weight: 800;">Help the AI</h3>
-                <p style="font-size:13px; color:var(--text-sub); margin-bottom:20px;">Add 3 popular items manually.</p>
-                <div id="manual-inputs"></div>
-                <button class="btn btn-black ripple-effect" style="margin-top:15px;" onclick="app.submitManual()">Generate Strategy</button>
-                <div style="margin-top:15px; font-size:12px; font-weight:600; color:var(--text-sub); cursor:pointer;" onclick="app.closeManualModal()">Cancel</div>
-            </div>
-        </div>
-        
-        <!-- GENERIC INSTALL MODAL -->
-        <div class="modal-overlay" id="install-help-modal" onclick="app.closeInstallModal()">
-            <div class="modal-box" onclick="event.stopPropagation()">
-                <div class="modal-icon" style="font-size: 40px; margin-bottom: 20px; color: var(--text-main);"></div>
-                <h3 style="margin:0 0 10px 0; font-weight: 800;">Install App</h3>
-                <p style="font-size:13px; color:var(--text-sub); margin-bottom:20px; line-height: 1.6;"></p>
-                <button class="btn btn-black ripple-effect" onclick="app.closeInstallModal()">Got it</button>
-            </div>
-        </div>
-
-        <!-- API KEY MODAL (INITIAL BLOCKER) -->
-        <div class="api-key-modal" id="api-key-modal" style="display: flex;">
-            <div class="modal-box" onclick="event.stopPropagation()">
-                <div class="hf-badge">GOOGLE GEMINI</div>
-                <h3 style="margin:0 0 10px 0; font-weight: 800;">Gemini API Key</h3>
-                <p style="font-size:13px; color:var(--text-sub); margin-bottom:20px;">Enter your free Google Gemini API Key.</p>
-                <input type="password" id="gemini-key-input" class="cat-trigger api-key-input" placeholder="AIzaSy...">
-                <button class="btn btn-brand ripple-effect" onclick="window.app.saveApiKey()">Start App</button>
-                <p style="font-size:11px; color:var(--text-sub); margin-top:15px;">Key is stored locally on your device.</p>
-            </div>
-        </div>
-
-        <!-- HIDDEN KEY MANAGER MODAL (LOGO TAP) -->
-        <div class="modal-overlay" id="key-manager-modal" style="display: none;" onclick="document.getElementById('key-manager-modal').style.display='none'">
-            <div class="modal-box" onclick="event.stopPropagation()">
-                <div class="hf-badge" style="background:#FFC107; color:#000;">KEY MANAGER</div>
-                <h3 style="margin:0 0 10px 0; font-weight: 800;">Manage AI Keys</h3>
-                <p style="font-size:13px; color:var(--text-sub); margin-bottom:20px;">Add keys to rotate. AI chooses the best available model.</p>
-                
-                <div id="key-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
-                    <!-- JS Injects Inputs Here -->
-                </div>
-
-                <!-- HUGGING FACE SECTION -->
-                <div style="background: var(--bg-input); border-radius: 12px; padding: 15px; text-align: left; margin-bottom: 20px; border: 1px solid var(--border-color);">
-                    <div style="font-size: 10px; font-weight: 800; color: #F8D210; text-transform: uppercase; margin-bottom: 8px;">
-                        <i class="fa fa-robot"></i> HUGGING FACE FALLBACK
-                    </div>
-                    <input type="text" id="hf-key-input" class="cat-trigger" 
-                        placeholder="HF Read Access Token (hf_...)" 
+            list.innerHTML += `
+                <div>
+                    <input type="text" id="key-slot-${i}" class="cat-trigger" 
+                        placeholder="Gemini Key ${i+1} (Auto-Switch Slot)" value="${val}" 
                         style="padding: 12px; font-size: 13px; border:1px solid var(--border-color); width:100%;">
-                    <div style="font-size: 10px; color: var(--text-sub); margin-top: 5px;">Used only if Gemini limits are exhausted.</div>
+                    ${statsHtml}
                 </div>
+            `;
+        }
+        modal.style.display = 'flex';
+    },
 
-                <button class="btn btn-brand ripple-effect" onclick="window.app.saveKeys()">Save All Keys</button>
+    saveKeys: () => {
+        const newKeys = [];
+        for (let i = 0; i < 5; i++) {
+            const el = document.getElementById(`key-slot-${i}`);
+            if (el && el.value.trim().length > 10) newKeys.push(el.value.trim());
+        }
+        
+        // Save HF Token
+        const hfInput = document.getElementById('hf-key-input');
+        if (hfInput) {
+            state.hfToken = hfInput.value.trim();
+            localStorage.setItem('discount_dost_hf_token', state.hfToken);
+        }
+
+        if (newKeys.length > 0) {
+            state.apiKeys = newKeys;
+            localStorage.setItem('discount_dost_gemini_keys', JSON.stringify(newKeys));
+            document.getElementById('key-manager-modal').style.display = 'none';
+            document.getElementById('api-key-modal').style.display = 'none';
+        } else {
+            alert("Enter at least one valid Gemini key.");
+        }
+    },
+    
+    saveApiKey: () => {
+        const input = document.getElementById('gemini-key-input');
+        if (!input) return;
+        const key = input.value.trim();
+        if (key.length > 5) {
+            state.apiKeys = [key];
+            localStorage.setItem('discount_dost_gemini_keys', JSON.stringify(state.apiKeys));
+            document.getElementById('api-key-modal').style.display = 'none';
+        }
+    },
+
+    // --- PUTER.JS INTEGRATION (FREE TIER) ---
+    generatePuter: async (prompt, isJson = true) => {
+        if (typeof puter === 'undefined') throw new Error("Puter.js not loaded");
+        
+        // Fast Prompt: Simplify to reduce Puter's processing time
+        const fastPrompt = `You are a JSON API. Return valid JSON only. \n${prompt.substring(0, 1500)}`; 
+
+        const response = await puter.ai.chat(fastPrompt);
+        const text = response?.message?.content || response?.toString() || "";
+        
+        if (isJson) {
+             const match = text.match(/\{[\s\S]*\}/);
+             if (match) return JSON.parse(match[0]);
+             throw new Error("Puter JSON Parse Failed");
+        }
+        return { text };
+    },
+
+    // --- HUGGING FACE INTEGRATION ---
+    generateHuggingFace: async (prompt, isJson = true) => {
+        if (!state.hfToken) throw new Error("No HF Token");
+        
+        const model = "mistralai/Mistral-7B-Instruct-v0.3"; 
+        const url = `https://api-inference.huggingface.co/models/${model}`;
+        
+        const formattedPrompt = `<s>[INST] ${prompt} [/INST]`;
+
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { 
+                "Authorization": `Bearer ${state.hfToken}`,
+                "Content-Type": "application/json" 
+            },
+            body: JSON.stringify({ 
+                inputs: formattedPrompt,
+                parameters: { max_new_tokens: 2000, return_full_text: false, temperature: 0.7 } 
+            })
+        });
+
+        if (!response.ok) throw new Error(`HF Error ${response.status}`);
+        
+        const result = await response.json();
+        let text = result[0]?.generated_text || "";
+        
+        if (isJson) {
+            const match = text.match(/\{[\s\S]*\}/);
+            if (match) return JSON.parse(match[0]);
+            throw new Error("HF JSON Parse Failed");
+        }
+        return { text };
+    },
+
+    // --- CORE GENERATION LOGIC (TRIPLE LAYER) ---
+    generateWithFallback: async (payloadFactory, type = 'text') => {
+        const activeModelBadge = document.getElementById('loader-active-model');
+        const modelNameText = document.getElementById('model-name-text');
+        
+        if(activeModelBadge) activeModelBadge.style.display = 'inline-flex';
+
+        // TIMER HELPER: Reset timer based on expected latency
+        const updateTimer = (seconds) => {
+            window.app.startTimer(seconds);
+        };
+
+        // LAYER 1: GEMINI (High Speed ~ 8-12s)
+        updateTimer(12);
+        if (state.apiKeys && state.apiKeys.length > 0) {
+            for (let m = 0; m < AI_MODELS.length; m++) {
+                const model = AI_MODELS[m];
+                if(modelNameText) modelNameText.innerText = model.label; 
+
+                for (let k = 0; k < state.apiKeys.length; k++) {
+                    const currentKey = state.apiKeys[k];
+                    const limitReason = window.tracker.isRateLimited(currentKey, model.rpm, model.rpd);
+                    if (limitReason) continue; 
+
+                    try {
+                        const body = payloadFactory(model.id);
+                        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${currentKey}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body)
+                        });
+
+                        if (response.status === 429 || response.status === 503) {
+                            for(let i=0; i<15; i++) window.tracker.logRequest(currentKey, 0);
+                            continue; 
+                        }
+
+                        if (!response.ok) break; // Try next model
+
+                        const data = await response.json();
+                        const usage = data.usageMetadata;
+                        const totalTokens = usage ? usage.totalTokenCount : 500;
+                        window.tracker.logRequest(currentKey, totalTokens);
+                        return data; 
+
+                    } catch (e) { continue; }
+                }
+            }
+        }
+        
+        // Extract raw prompt for fallbacks
+        const dummyPayload = payloadFactory('dummy');
+        const promptText = dummyPayload.contents[0].parts[0].text; 
+
+        // LAYER 2: HUGGING FACE (Backup ~ 25s)
+        if (state.hfToken && type === 'text') {
+            updateTimer(25);
+            if(modelNameText) modelNameText.innerText = "Hugging Face (Mistral)";
+            try {
+                const hfData = await window.app.generateHuggingFace(promptText);
+                return { candidates: [{ content: { parts: [{ text: JSON.stringify(hfData) }] } }] };
+            } catch (hfErr) { console.warn("HF Failed:", hfErr); }
+        }
+
+        // LAYER 3: PUTER.JS (Free / Unlimited ~ 35-45s)
+        if (type === 'text') {
+            updateTimer(40);
+            if(modelNameText) modelNameText.innerText = "Puter.js (Free Tier)";
+            try {
+                const puterData = await window.app.generatePuter(promptText);
+                return { candidates: [{ content: { parts: [{ text: JSON.stringify(puterData) }] } }] };
+            } catch (pErr) { console.warn("Puter Failed:", pErr); }
+        }
+
+        window.app.showError("System Overload", "All AI providers (Google, HF, Puter) are busy. Please wait a moment.");
+        throw new Error("QuotaExhausted");
+    },
+
+    // --- UI HELPERS ---
+    toggleTheme: () => {
+        state.isDark = !state.isDark;
+        document.body.classList.toggle('light-mode');
+        document.body.classList.toggle('dark-mode');
+        document.getElementById('theme-icon').className = state.isDark ? 'fa fa-moon' : 'fa fa-sun';
+    },
+
+    handleScroll: () => {
+        const container = document.getElementById('scroll-container');
+        if (!container) return;
+        const shrink = container.scrollTop > 40;
+        const header = document.getElementById('main-header');
+        if (shrink) header.classList.add('shrink');
+        else header.classList.remove('shrink');
+    },
+
+    navTo: (page) => {
+        if (state.page === page) return;
+        window.history.pushState({page: page}, "", "");
+        window.app.renderPage(page);
+    },
+
+    renderPage: (page) => {
+        state.page = page;
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        const navItem = document.getElementById(`nav-${page}`);
+        if(navItem) navItem.classList.add('active');
+        document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+        const targetPage = page === 1 ? 'view-input' : page === 2 ? 'view-results' : 'view-strategy';
+        const pageEl = document.getElementById(targetPage);
+        if(pageEl) pageEl.classList.add('active');
+        const titleEl = document.getElementById('page-title');
+        if (page === 1) titleEl.innerHTML = "Business<br>Details";
+        else if (page === 2) {
+            titleEl.innerHTML = "Impact<br>Analysis";
+            window.app.renderResults();
+        } else {
+            titleEl.innerHTML = "Growth<br>Strategy";
+            document.getElementById('strategy-store-name').innerText = state.storeName || "your store";
+        }
+        const backBtn = document.getElementById('back-btn');
+        if(backBtn) backBtn.classList.toggle('visible', page > 1);
+        const scrollContainer = document.getElementById('scroll-container');
+        if(scrollContainer) scrollContainer.scrollTop = 0;
+    },
+
+    goBack: () => window.history.back(),
+
+    validateAndNav: (page) => {
+        if (!state.visits || !state.aov || !state.discount) {
+            alert("Please fill all business details");
+            return;
+        }
+        window.app.navTo(page);
+    },
+
+    fmt: (n) => {
+        const num = parseFloat(n);
+        if (isNaN(num)) return "₹0";
+        return "₹" + Math.round(num).toLocaleString('en-IN');
+    },
+    
+    fmtCompact: (n) => {
+        const num = Number(n);
+        if (isNaN(num)) return "₹0";
+        if (num >= 10000000) return "₹" + (num / 10000000).toFixed(2) + " Cr";
+        if (num >= 100000) return "₹" + (num / 100000).toFixed(2) + " L";
+        return "₹" + Math.round(num).toLocaleString('en-IN');
+    },
+
+    toggleDeal: (el) => {
+        if (document.activeElement && document.activeElement.getAttribute('contenteditable') === 'true') return;
+        if (el.classList.contains('repeat-card-wrapper')) {
+             el.classList.toggle('expanded');
+             return;
+        }
+        el.classList.toggle('expanded');
+    },
+
+    shareStrategy: () => window.print(),
+
+    updateDealMath: (el) => {
+        const card = el.closest('.deal-card');
+        if (!card) return;
+        const getNum = (sel) => {
+            const e = card.querySelector(sel);
+            return e ? parseFloat(e.innerText.replace(/[^0-9.]/g, '')) || 0 : 0;
+        }
+        let price = getNum('.deal-price-edit');
+        let goldPct = getNum('.pct-gold');
+        let feePct = getNum('.pct-fee');
+        let gstPct = getNum('.pct-gst'); 
+        const gold = Math.round(price * (goldPct / 100));
+        const fee = Math.round(price * (feePct / 100));
+        const gst = Math.round(fee * (gstPct / 100));
+        const net = price - gold - fee - gst;
+        const setTxt = (sel, val, isNeg=false) => {
+            const e = card.querySelector(sel);
+            if(e) e.innerText = (isNeg ? "- " : "") + window.app.fmt(val);
+        }
+        setTxt('.val-gold', gold, true);
+        setTxt('.val-fee', fee, true);
+        setTxt('.val-gst', gst, true);
+        setTxt('.val-net', net);
+        setTxt('.val-bill', price);
+        const tag = card.querySelector('.deal-tag');
+        if(tag) tag.innerText = `GET ${window.app.fmt(gold)} GOLD`;
+    },
+
+    recalcItemTotal: (inputEl) => {
+        const card = inputEl.closest('.deal-card');
+        if(!card) return;
+        let totalReal = 0;
+        const itemRows = card.querySelectorAll('.item-row-price');
+        itemRows.forEach(row => {
+            const val = parseFloat(row.innerText.replace(/[^0-9.]/g, '')) || 0;
+            totalReal += val;
+        });
+        const realValDisplay = card.querySelector('.real-value-display');
+        if(realValDisplay) realValDisplay.innerText = window.app.fmt(totalReal);
+        window.app.updateDealMath(inputEl); 
+    },
+
+    updateRepeatCard: () => {
+        const wrapper = document.querySelector('.repeat-card-wrapper');
+        if (!wrapper) return;
+        const getGold = parseInt(wrapper.querySelector('.inp-rc-gold').innerText.replace(/[^0-9]/g,'')) || 0;
+        wrapper.querySelector('.gold-text').innerText = `${window.app.fmt(getGold)} Gold`;
+    },
+
+    renderResults: () => {
+        const v = Number(state.visits);
+        const a = Number(state.aov);
+        const d = Number(state.discount);
+        const lossPerBill = a * (d / 100);
+        const goldVoucherValue = lossPerBill * 0.5;
+        const costPerBillGold = (goldVoucherValue * 1.177);
+        const savingsPerBill = lossPerBill - costPerBillGold;
+        const discountDaily = lossPerBill * v;
+        const goldDaily = costPerBillGold * v;
+        const discountMonthly = discountDaily * 30;
+        const goldMonthly = goldDaily * 30;
+        const discountYearly = discountDaily * 365;
+        const goldYearly = goldDaily * 365;
+        const savingsYearly = savingsPerBill * v * 365;
+
+        const html = `
+            <div class="card" style="padding: 0; overflow: hidden;">
+                <div style="padding: 20px; background: var(--bg-surface); border-bottom: 1px solid var(--border-color);">
+                    <div style="font-weight: 800; font-size: 18px;">Impact Analysis</div>
+                    <div style="font-size: 12px; color: var(--text-sub);">Half the value, Double the Impact</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--border-color);">
+                    <div style="padding: 12px 8px; font-size: 10px; font-weight: 800; color: var(--text-sub); border-right: 1px solid var(--border-color);">TIMEFRAME</div>
+                    <div style="padding: 12px 8px; font-size: 10px; font-weight: 800; color: var(--danger); border-right: 1px solid var(--border-color); background: rgba(255, 61, 0, 0.05);">CASH DISCOUNT<br>(LOSS)</div>
+                    <div style="padding: 12px 8px; font-size: 10px; font-weight: 800; color: #FFB300; background: rgba(255, 179, 0, 0.05);">GOLD MODEL<br>(COST)</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; background: var(--bg-input); border-bottom: 1px solid var(--border-color);">
+                    <div style="padding: 15px; font-size: 12px; font-weight: 800; color: var(--text-main); border-right: 1px solid var(--border-color);">DAILY</div>
+                    <div style="padding: 15px 8px; font-size: 14px; font-weight: 800; color: var(--danger); border-right: 1px solid var(--border-color);">${window.app.fmtCompact(discountDaily)}</div>
+                    <div style="padding: 15px 8px; font-size: 14px; font-weight: 800; color: #FFB300;">${window.app.fmtCompact(goldDaily)}</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; background: var(--bg-input); border-bottom: 1px solid var(--border-color);">
+                    <div style="padding: 15px; font-size: 12px; font-weight: 800; color: var(--text-main); border-right: 1px solid var(--border-color);">MONTHLY</div>
+                    <div style="padding: 15px 8px; font-size: 14px; font-weight: 800; color: var(--danger); border-right: 1px solid var(--border-color);">${window.app.fmtCompact(discountMonthly)}</div>
+                    <div style="padding: 15px 8px; font-size: 14px; font-weight: 800; color: #FFB300;">${window.app.fmtCompact(goldMonthly)}</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; background: var(--bg-input);">
+                    <div style="padding: 15px; font-size: 12px; font-weight: 800; color: var(--text-main); border-right: 1px solid var(--border-color);">YEARLY</div>
+                    <div style="padding: 15px 8px; font-size: 14px; font-weight: 800; color: var(--danger); border-right: 1px solid var(--border-color);">${window.app.fmtCompact(discountYearly)}</div>
+                    <div style="padding: 15px 8px; font-size: 14px; font-weight: 800; color: #FFB300;">${window.app.fmtCompact(goldYearly)}</div>
+                </div>
             </div>
-        </div>
 
-    </div>
-    <script src="./script.js"></script>
-</body>
-</html>
+            <div class="card" style="background: var(--bg-success); border: 1px solid var(--success); text-align: center; padding: 24px;">
+                <div style="font-size: 12px; font-weight: 800; color: var(--success); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">NET PROFIT INCREASE</div>
+                <div style="font-size: 28px; font-weight: 800; color: var(--success); margin-bottom: 5px;">+${window.app.fmtCompact(savingsYearly)}</div>
+                <div style="font-size: 13px; color: var(--success); opacity: 0.8;">Saved directly to your bottom line</div>
+            </div>
+        `;
+        document.getElementById('results-container').innerHTML = html;
+    },
+
+    openCatModal: () => {
+        document.getElementById('cat-modal-bg').classList.add('open');
+        document.getElementById('cat-modal-sheet').classList.add('open');
+    },
+    closeCatModal: () => {
+        document.getElementById('cat-modal-bg').classList.remove('open');
+        document.getElementById('cat-modal-sheet').classList.remove('open');
+    },
+    renderCategoryGrid: () => {
+        const grid = document.getElementById('cat-grid');
+        grid.innerHTML = CATEGORIES.map(c => `
+            <div class="cat-item ${state.category.id === c.id ? 'selected' : ''}" onclick="window.app.selectCategory('${c.id}')">
+                <i class="fa ${c.icon}" style="font-size: 24px; margin-bottom: 8px;"></i>
+                <div style="font-size: 11px; font-weight: 700;">${c.label}</div>
+            </div>
+        `).join('');
+    },
+    selectCategory: (id) => {
+        state.category = CATEGORIES.find(c => c.id === id);
+        document.getElementById('txt-category').innerText = state.category.label;
+        window.app.renderCategoryGrid();
+        window.app.closeCatModal();
+    },
+
+    openManualModal: () => document.getElementById('manual-modal').style.display = 'flex',
+    closeManualModal: () => document.getElementById('manual-modal').style.display = 'none',
+    
+    renderManualInputs: () => {
+        const container = document.getElementById('manual-inputs');
+        container.innerHTML = state.manualItems.map((item, i) => `
+            <div style="margin-bottom:10px; display:flex; gap:10px;">
+                <input type="text" placeholder="${i===0?'Burger':i===1?'Pizza':'Coffee'}" value="${item.name}" 
+                    oninput="state.manualItems[${i}].name = this.value" style="flex:2; font-size:14px; padding:12px;">
+                <input type="number" placeholder="${i===0?'200':i===1?'450':'150'}" value="${item.price}" 
+                    oninput="state.manualItems[${i}].price = this.value" style="flex:1; font-size:14px; padding:12px;">
+            </div>
+        `).join('');
+    },
+    submitManual: () => {
+        const text = state.manualItems.filter(i => i.name && i.price).map(i => `${i.name} ${i.price}`).join('\n');
+        if (text) {
+            window.app.closeManualModal();
+            window.app.startAnalysis(text);
+        }
+    },
+    
+    getFallbackMenu: (catId) => {
+        const aov = Number(state.aov) || 500;
+        const dictionaries = {
+            'Cafe': [{n: "Cappuccino", p: 0.4}, {n: "Cold Brew", p: 0.5}, {n: "Croissant", p: 0.45}, {n: "Bagel Cream Cheese", p: 0.5}],
+            'Restaurant': [{n: "Butter Chicken", p: 0.8}, {n: "Dal Makhani", p: 0.6}, {n: "Garlic Naan", p: 0.15}, {n: "Paneer Tikka", p: 0.55}],
+            'Retail': [{n: "Cotton Tee", p: 0.5}, {n: "Denim Jeans", p: 1.5}, {n: "Summer Dress", p: 1.2}, {n: "Sneakers", p: 2.0}],
+            'Grocery': [{n: "Fresh Atta 5kg", p: 0.4}, {n: "Premium Rice", p: 0.8}, {n: "Cooking Oil", p: 1.0}, {n: "Dry Fruits Pack", p: 1.2}],
+            'Salon': [{n: "Haircut", p: 0.5}, {n: "Facial", p: 1.5}, {n: "Manicure", p: 0.8}, {n: "Pedicure", p: 0.9}]
+        };
+        const items = dictionaries[catId] || dictionaries['Restaurant'];
+        return items.map(i => `${i.n} ${Math.round(aov * i.p)}`).join('\n');
+    },
+
+    showError: (title, desc) => {
+        window.app.toggleLoader(false);
+        const modal = document.getElementById('error-modal');
+        document.getElementById('error-title').innerText = title;
+        document.getElementById('error-desc').innerText = desc;
+        modal.style.display = 'flex';
+    },
+
+    handleFile: async (input) => {
+        if (input.files && input.files.length > 0) {
+            const files = Array.from(input.files);
+            if (files.length > 10) return alert("Please upload a maximum of 10 files at a time.");
+            window.app.toggleLoader(true, true); 
+            try {
+                const filePromises = files.map(file => {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const base64Data = e.target.result.split(',')[1];
+                            let mime = file.type || "image/jpeg";
+                            if (!mime && file.name.toLowerCase().endsWith('.pdf')) mime = 'application/pdf';
+                            if (!mime && file.name.toLowerCase().match(/\.(jpg|jpeg)$/)) mime = 'image/jpeg';
+                            if (!mime && file.name.toLowerCase().endsWith('.png')) mime = 'image/png';
+                            resolve({ inline_data: { mime_type: mime, data: base64Data } });
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                });
+                const inlineDataParts = await Promise.all(filePromises);
+                const result = await window.app.generateWithFallback((modelId) => ({
+                    contents: [{
+                        parts: [
+                            { text: "Analyze these menu images/PDFs. Extract all menu items and prices into a single clean list. Ignore phone numbers or addresses." },
+                            ...inlineDataParts 
+                        ]
+                    }]
+                }), 'ocr');
+                let scannedText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                if (!scannedText || scannedText.length < 5) throw new Error("OCR yielded little text");
+                document.getElementById('menu-text').value = scannedText.trim();
+            } catch (err) {
+                if (err.message !== "QuotaExhausted" && err.message !== "No API Keys") {
+                    window.app.showError("Scan Failed", "Could not read files. Please try clearer images or a text PDF.");
+                    const fallbackData = window.app.getFallbackMenu(state.category.id);
+                    document.getElementById('menu-text').value = fallbackData;
+                }
+            } finally {
+                input.value = ''; 
+                window.app.toggleLoader(false);
+            }
+        }
+    },
+
+    toggleLoader: (show, isScanning = false) => {
+        const loader = document.getElementById('loader');
+        const quoteBox = document.getElementById('loader-quote');
+        const storeNameEl = document.getElementById('loader-store-name');
+        const statusEl = document.getElementById('status-dynamic');
+        const progressEl = document.getElementById('loader-progress');
+        const activeModelBadge = document.getElementById('loader-active-model');
+        const timerEl = document.getElementById('loader-timer');
+        
+        if (show) {
+            loader.style.display = 'flex';
+            if(activeModelBadge) activeModelBadge.style.display = 'none'; 
+            if(storeNameEl) storeNameEl.innerText = state.storeName || "Your Business";
+            if(timerEl) timerEl.innerText = ""; // Reset timer text initially
+
+            let progress = 0;
+            const statusSteps = isScanning 
+                ? ["Reading Files...", "Enhancing Image...", "Extracting Text...", "Finalizing OCR..."]
+                : ["Analyzing Menu...", "Benchmarking Prices...", "Identifying Whales...", "Cooking Deals...", "Polishing Strategy..."];
+            if (state.loaderInterval) clearInterval(state.loaderInterval);
+            state.loaderInterval = setInterval(() => {
+                progress += Math.floor(Math.random() * 5) + 1;
+                if (progress > 95) progress = 95;
+                if (progressEl) progressEl.style.width = progress + "%";
+                const stepIdx = Math.floor((progress / 100) * statusSteps.length);
+                if (statusEl && statusSteps[stepIdx]) statusEl.innerText = statusSteps[stepIdx];
+            }, 200);
+            const rotateTip = () => {
+                const tip = MERCHANT_TIPS[Math.floor(Math.random() * MERCHANT_TIPS.length)];
+                quoteBox.innerText = tip;
+            };
+            rotateTip(); 
+            if (state.tipInterval) clearInterval(state.tipInterval);
+            state.tipInterval = setInterval(rotateTip, 3000); 
+        } else {
+            if (progressEl) progressEl.style.width = "100%";
+            if (statusEl) statusEl.innerText = "Complete!";
+            // Reset Timer on finish
+            if(state.timerInterval) clearInterval(state.timerInterval);
+            if(timerEl) timerEl.innerText = "";
+
+            setTimeout(() => {
+                loader.style.display = 'none';
+                clearInterval(state.tipInterval);
+                clearInterval(state.loaderInterval);
+                if (progressEl) progressEl.style.width = "0%";
+            }, 500);
+        }
+    },
+
+    // NEW: Real-time Countdown Timer Logic
+    startTimer: (duration) => {
+        let remaining = duration;
+        const el = document.getElementById('loader-timer');
+        if (!el) return;
+        
+        // Clear previous timer if running
+        if (state.timerInterval) clearInterval(state.timerInterval);
+        
+        // Initial set
+        el.innerText = `Est. Time: ${remaining}s`;
+        
+        state.timerInterval = setInterval(() => {
+            remaining--;
+            if(remaining <= 0) {
+                el.innerText = "Finishing up...";
+                clearInterval(state.timerInterval);
+            } else {
+                el.innerText = `Est. Time: ${remaining}s`;
+            }
+        }, 1000);
+    },
+
+    startAnalysis: async (manualText) => {
+        const isQuickMode = document.getElementById('skip-details-toggle')?.checked;
+        if (!isQuickMode && (!state.visits || !state.aov)) {
+            alert("Please enter Business Details on Page 1 first, or enable 'Quick Mode' toggle.");
+            window.app.navTo(1);
+            return;
+        }
+        const inputMenu = manualText || document.getElementById('menu-text').value;
+        if (!inputMenu || inputMenu.length < 3) return alert("Please enter menu items");
+
+        window.app.toggleLoader(true);
+        const today = new Date();
+        const dateStr = today.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const currentAOV = isQuickMode ? 500 : state.aov; 
+        const currentDiscount = isQuickMode ? 10 : state.discount;
+        const storeName = state.storeName || "My Store";
+
+        const prompt = `Role: Senior Brand Strategist for a ${state.category.label} (Ref: ${state.category.brandRef}).
+        CONTEXT:
+        - Date: ${dateStr}. (CRITICAL: Generate titles relevant to UPCOMING festivals/seasons relative to this date).
+        - Store: '${storeName}'
+        - AOV: ₹${currentAOV}
+        - Current Discount: ${currentDiscount}%
+        - MENU DATA: ${inputMenu}
+        TASK: Create retention strategy.
+        1. 10 'Smart Bundles':
+           - Combos priced 15-20% above ₹${currentAOV}.
+           - TITLES: Catchy, Hinglish or trendy.
+           - STRUCTURE: 'items' array (REQUIRED for Quick Mode and Full Mode).
+           - Gold Value ~10-15% of deal_price.
+           - IMPORTANT: Even in Quick Mode, you MUST invent creative titles (e.g. 'Bahubali Thali', 'Monsoon Masti') and list specific menu items with prices in the 'items' array. Do not be lazy.
+        2. 5 Gold Vouchers.
+        3. Physical Repeat Card.
+        OUTPUT JSON: { "deals": [{"title": "string", "deal_price": number, "gold": number, "items": [{"name": "string", "price": number}]}], "vouchers": [{"threshold": number, "amount": number, "desc": "string"}], "repeatCard": {...} }`;
+
+        try {
+            const result = await window.app.generateWithFallback((modelId) => ({
+                contents: [{ parts: [{ text: prompt }] }]
+            }));
+
+            const candidate = result?.candidates?.[0];
+            let jsonText = candidate?.content?.parts?.[0]?.text;
+            const groundingChunks = candidate?.groundingMetadata?.groundingChunks || [];
+            state.groundingSources = groundingChunks.map(c => c.web).filter(w => w);
+
+            if (jsonText) jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+            if (!jsonText) throw new Error("Empty AI response");
+
+            let parsed;
+            try { parsed = JSON.parse(jsonText); } catch (e) { throw new Error("Invalid JSON"); }
+
+            if (!parsed.deals || !Array.isArray(parsed.deals)) parsed.deals = [];
+            parsed.deals = parsed.deals.map(d => {
+                // Ensure real deal price matches sum of items
+                if (typeof d.items === 'string') {
+                    d.items = [{name: d.items, price: d.deal_price}];
+                } else if (Array.isArray(d.items)) {
+                    const totalRealVal = d.items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+                    // Force alignment: Deal Price (Customer Pays) = Sum of Items (Real Value)
+                    if (totalRealVal > 0) d.deal_price = totalRealVal; 
+                }
+                
+                // Fallback for lazy AI in Quick Mode
+                if (!d.items || d.items.length === 0) {
+                     d.items = [
+                        {name: "Main Dish", price: Math.round(d.deal_price * 0.7)},
+                        {name: "Side/Drink", price: Math.round(d.deal_price * 0.3)}
+                     ];
+                }
+                
+                return d;
+            });
+
+            if (!parsed.repeatCard) {
+                parsed.repeatCard = {
+                    trigger: `Bill > ${window.app.fmt(Number(currentAOV)/2)}`,
+                    next_visit_min_spend: Number(currentAOV),
+                    next_visit_gold_reward: Math.round(Number(currentAOV)*0.1),
+                    card_title: "Gold Member",
+                    card_desc: "Visit 5 times to unlock bonus"
+                };
+            }
+
+            if (!parsed.vouchers || !Array.isArray(parsed.vouchers)) {
+                parsed.vouchers = [
+                    {threshold: Number(currentAOV), amount: Math.round(Number(currentAOV)*0.05), desc: "Bronze Reward"},
+                    {threshold: Number(currentAOV)*2, amount: Math.round(Number(currentAOV)*0.2), desc: "Silver Reward"}
+                ];
+            }
+            state.strategy = parsed;
+            window.app.renderStrategy();
+
+        } catch (err) {
+            if (err.message !== "QuotaExhausted" && err.message !== "No API Keys") {
+                 console.warn("AI failed. Using Smart Parse Fallback:", err);
+                 const deals = [];
+                 for(let i=0; i<10; i++) deals.push({title: "Offer "+(i+1), items: [{name: "Item 1", price: 100}], real_value: Number(currentAOV), deal_price: Number(currentAOV), gold: Math.round(currentAOV*0.1)});
+                 const vouchers = [{threshold: 1000, amount: 100, desc: "Visit Bonus"}];
+                 const repeatCard = {trigger: "Bill > 500", next_visit_min_spend: 1000, next_visit_gold_reward: 100, card_title: "Platinum Club", card_desc: "Physical Loyalty Card"};
+                 state.strategy = { deals, vouchers, repeatCard };
+                 window.app.renderStrategy();
+            }
+        } finally {
+             setTimeout(() => window.app.toggleLoader(false), 500);
+        }
+    },
+
+    renderStrategy: () => {
+        document.getElementById('strategy-input-panel').style.display = 'none';
+        const container = document.getElementById('strategy-results');
+        container.style.display = 'block';
+        const s = state.strategy;
+        const sources = state.groundingSources || [];
+        let html = '';
+        const isQuickMode = document.getElementById('skip-details-toggle')?.checked;
+        html += `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div style="font-size:10px; font-weight:700; color:var(--text-sub); text-transform:uppercase;">
+                    ${isQuickMode ? '<i class="fa fa-bolt"></i> Quick Mode' : '<i class="fa fa-chart-line"></i> Deep Analysis'}
+                </div>
+                <button class="btn ripple-effect" style="width: auto; padding: 8px 16px; font-size: 11px; height: 32px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);" onclick="app.startAnalysis()">
+                    <i class="fa fa-sync-alt"></i> Regenerate
+                </button>
+            </div>
+        `;
+
+        if (sources.length > 0) {
+            html += `
+                <div style="margin-bottom: 20px; padding: 15px; background: rgba(66, 133, 244, 0.1); border: 1px solid rgba(66, 133, 244, 0.3); border-radius: 12px; animation: fadeUp 0.5s ease;">
+                    <div style="font-size: 11px; font-weight: 800; color: #4285F4; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">
+                        <i class="fab fa-google"></i> Verified with Google Search
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            `;
+            sources.forEach(src => {
+                if (src.uri && src.title) {
+                    html += `<a href="${src.uri}" target="_blank" style="font-size: 11px; color: var(--text-main); text-decoration: none; background: var(--bg-surface); padding: 4px 10px; border-radius: 15px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 5px;">${src.title} <i class="fa fa-external-link-alt" style="font-size: 9px; opacity: 0.5;"></i></a>`;
+                }
+            });
+            html += `</div></div>`;
+        }
+        
+        html += `<div style="display: flex; alignItems: center; gap: 8px; margin-bottom: 15px; margin-top: 10px;"><div style="width: 24px; height: 24px; background: #FF5722; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;"><i class="fa fa-ticket-alt"></i></div><span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">10 Exclusive Deals</span></div><div>`;
+
+        if (s.deals && s.deals.length > 0) {
+            s.deals.forEach((deal, idx) => {
+                let realVal = 0;
+                let itemsHtml = '';
+                
+                // RE-CALCULATE REAL VALUE FROM ITEMS
+                if (Array.isArray(deal.items)) {
+                    deal.items.forEach(item => {
+                        const p = Number(item.price) || 0;
+                        realVal += p;
+                        itemsHtml += `<div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding: 6px 0;"><div contenteditable="true" style="font-size: 13px; color: var(--text-sub); flex: 1;">${item.name}</div><div contenteditable="true" class="item-row-price" oninput="app.recalcItemTotal(this)" style="font-size: 13px; font-weight: 700; color: var(--text-main); width: 60px; text-align: right;">${p}</div></div>`;
+                    });
+                } else { 
+                    realVal = deal.deal_price; 
+                }
+
+                // Force Deal Price to match Real Value initially (Gold Logic)
+                const price = realVal;
+                
+                const gold = Math.max(30, deal.gold || Math.round(price * 0.10));
+                const platformFee = Math.round(price * 0.10);
+                const gstOnFee = Math.round(platformFee * 0.18);
+                const net = price - gold - platformFee - gstOnFee;
+                const goldPct = price > 0 ? Math.round((gold / price) * 100) : 10;
+
+                html += `
+                    <div class="deal-card deal-card-new stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${idx * 0.05}s;">
+                        <div class="deal-header"><div style="font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px;">DEAL #${idx+1}</div><div class="deal-tag">GET ${window.app.fmt(gold)} GOLD</div></div>
+                        <div class="deal-body">
+                            <div contenteditable="true" style="font-size: 18px; font-weight: 800; margin-bottom: 12px; color: var(--text-main); line-height: 1.3;">${deal.title || 'Special Offer'}</div>
+                            
+                            <!-- ITEMS CLIPS (Visual Summary) -->
+                            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px;">
+                                ${(Array.isArray(deal.items) ? deal.items.slice(0,3).map(i => 
+                                    `<div style="font-size: 10px; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 12px; color: var(--text-sub); border: 1px solid rgba(255,255,255,0.05);">${i.name}</div>`
+                                ).join('') : '')}
+                                ${(Array.isArray(deal.items) && deal.items.length > 3) ? `<div style="font-size: 10px; opacity: 0.5;">+${deal.items.length - 3} more</div>` : ''}
+                            </div>
+
+                            <div class="deal-price-box"><div><div class="price-label">Deal Price (Full Value)</div><div contenteditable="true" oninput="app.updateDealMath(this)" class="deal-price-edit" style="font-size: 20px; font-weight: 800; color: var(--brand); letter-spacing: -0.5px;">${window.app.fmt(price)}</div></div><div style="text-align: right;"><div class="price-label">Net Earning</div><div class="val-net" style="font-size: 16px; font-weight: 800; color: #00E676;">${window.app.fmt(net)}</div></div></div>
+                            <div style="text-align: center; margin-top: 10px;"><div class="tap-hint">TAP TO SEE BREAKDOWN <i class="fa fa-chevron-down"></i></div></div>
+                        </div>
+                        <div class="math-breakdown">
+                             <div style="padding: 20px;">
+                                <!-- DETAILED ITEM BREAKDOWN INSIDE -->
+                                <div style="background: var(--bg-input); border-radius: 8px; padding: 10px; margin-bottom: 15px;">
+                                    <div style="font-size: 9px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Item Breakdown</div>
+                                    ${itemsHtml}
+                                    <div style="display: flex; justify-content: space-between; padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--border-color);"><div style="font-size: 11px; font-weight: 800;">Total Real Value</div><div class="real-value-display" style="font-size: 12px; font-weight: 800;">${window.app.fmt(realVal)}</div></div>
+                                </div>
+
+                                <div class="math-row"><div class="math-label">Customer Pays</div><div class="math-val val-bill">${window.app.fmt(price)}</div></div>
+                                <div class="math-row"><div class="math-label">Gold Reward (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gold">${goldPct}</span>%)</div><div class="math-val val-gold" style="color:#FFB300;">- ${window.app.fmt(gold)}</div></div>
+                                <div class="math-row"><div class="math-label">Platform Fee (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-fee">10</span>%)</div><div class="math-val val-fee" style="color:#FF5722;">- ${window.app.fmt(platformFee)}</div></div>
+                                <div class="math-row"><div class="math-label">GST (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gst">18</span>%)</div><div class="math-val val-gst" style="color:#FF5722;">- ${window.app.fmt(gstOnFee)}</div></div>
+                                <div style="padding-top: 12px; display: flex; justify-content: space-between; align-items: center; margin-top: 5px; border-top:1px solid var(--border-color);"><span style="font-size: 11px; color: #00E676; font-weight: 800; text-transform: uppercase;">Net Merchant Earning</span><span class="val-net" style="font-weight: 800; font-size:18px;">${window.app.fmt(net)}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        html += `</div>`;
+        
+        html += `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;"><div style="width: 24px; height: 24px; background: #FFC107; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: black; font-size: 12px;"><i class="fa fa-gift"></i></div><span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Gold Vouchers (Retention)</span></div><div style="display: flex; overflow-x: auto; gap: 15px; padding-bottom: 20px; scroll-snap-type: x mandatory;">`;
+        if (s.vouchers && s.vouchers.length > 0) {
+            s.vouchers.forEach((v, i) => {
+                const amount = window.app.fmt(Number(v.amount) || 0);
+                const threshold = window.app.fmt(Number(v.threshold) || 0);
+                
+                html += `<div class="voucher-card-gold stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: ${0.5 + (i * 0.1)}s;"><div style="display: flex; justify-content: space-between; align-items: center;"><div style="font-size: 10px; font-weight: 800; text-transform: uppercase; opacity: 0.8;">VOUCHER</div><div style="font-size: 10px; font-weight: 700; background: #000; color: #FFC107; padding: 2px 6px; border-radius: 4px;">GOLD</div></div><div style="text-align: center; padding: 15px 0;"><div contenteditable="true" style="font-size: 32px; font-weight: 900; letter-spacing: -1px;">${amount}</div><div style="font-size: 10px; font-weight: 700; margin-top: 5px; opacity: 0.7;">ON BILL > ${threshold}</div></div><div contenteditable="true" style="font-size: 11px; text-align: center; font-weight: 600; opacity: 0.8; line-height: 1.4;">${v.desc}</div></div>`;
+            });
+        }
+        html += `</div>`;
+
+        const rc = s.repeatCard || { trigger: "Bill > 500", next_visit_gold_reward: 50, next_visit_min_spend: 100, card_title: "Gold Member", card_desc: "Loyalty Card" };
+        html += `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;"><div style="width: 24px; height: 24px; background: #4CAF50; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;"><i class="fa fa-credit-card"></i></div><span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Physical Repeat Business Card</span></div>
+            <div class="repeat-card-wrapper stagger-in" onclick="app.toggleDeal(this)" style="animation-delay: 1s;">
+                <div class="repeat-card-visual"><div class="rc-logo-corner"><i class="fa fa-infinity"></i></div><div><div class="rc-chip"></div><div class="rc-store-name">${state.storeName || "STORE NAME"}</div></div><div><div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.6); margin-bottom: 4px;">${rc.card_title || "Platinum Club"}</div><div class="rc-offer-main">Get <span class="gold-text">${window.app.fmt(rc.next_visit_gold_reward || 0)} Gold</span> on every visit</div></div></div>
+                <div class="math-breakdown"><div style="padding: 20px;"><div style="font-size: 11px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 15px;">Physical Card Logic</div><div class="rc-input-row"><span>Trigger Condition</span><div class="rc-val-edit" contenteditable="true" style="width: 120px;">${rc.trigger || 'N/A'}</div></div><div class="rc-input-row"><span>Gold Reward Amount</span><div class="rc-val-edit inp-rc-gold" contenteditable="true" oninput="app.updateRepeatCard()">${window.app.fmt(rc.next_visit_gold_reward || 0)}</div></div><div class="rc-input-row"><span>Redeem Min Bill</span><div class="rc-val-edit" contenteditable="true">${window.app.fmt(rc.next_visit_min_spend || 0)}</div></div><div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-sub); line-height: 1.4;"><i class="fa fa-print"></i> <b>Print this card.</b> Hand it to customers who spend above the trigger amount. They keep the card in their wallet and redeem Gold on every subsequent visit.</div></div></div>
+            </div>
+            <button class="btn btn-brand ripple-effect" style="margin-top: 40px;" onclick="app.shareStrategy()"><i class="fa fa-file-pdf"></i> Download Strategy PDF</button>
+            <button class="btn ripple-effect" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-sub); margin-bottom: 50px;" onclick="location.reload()">Reset Strategy</button>
+        `;
+        container.innerHTML = html;
+    }
+};
+
+// Initialize
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.app.init);
+} else {
+    window.app.init();
+    }
