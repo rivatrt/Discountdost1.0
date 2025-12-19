@@ -12,7 +12,7 @@
     
     <title>Discount Dost</title>
     
-    <!-- PUTER.JS (Free AI Fallback) -->
+    <!-- PUTER.JS (Free AI Fallback Tier) -->
     <script src="https://js.puter.com/v2/"></script>
     
     <!-- FAVICON -->
@@ -432,7 +432,7 @@
 
         <!-- MAIN CONTENT -->
         <main id="scroll-container" onscroll="app.handleScroll()">
-            <!-- NEW INTERACTIVE LOADER -->
+            <!-- NEW INTERACTIVE LOADER WITH TIMER -->
             <div id="loader" class="loader-overlay modern" style="display: none;">
                 <div class="loader-content">
                     <!-- Bouncing Icon Box -->
@@ -464,6 +464,9 @@
                     <div class="loader-text-group">
                         <div class="loader-brand" id="loader-store-name">Your Business</div>
                         <div class="status-msg-dynamic" id="status-dynamic">Cooking up strategies...</div>
+                        
+                        <!-- REAL TIME COUNTDOWN TIMER -->
+                        <div id="loader-timer" style="font-size: 10px; font-weight: 700; color: var(--text-sub); margin-top: 5px; opacity: 0.8;"></div>
                         
                         <!-- NEW ACTIVE MODEL BADGE -->
                         <div id="loader-active-model" class="model-active-badge" style="display: none;">
@@ -648,7 +651,7 @@
                     <!-- JS Injects Inputs Here -->
                 </div>
 
-                <!-- NEW HUGGING FACE SECTION -->
+                <!-- HUGGING FACE SECTION -->
                 <div style="background: var(--bg-input); border-radius: 12px; padding: 15px; text-align: left; margin-bottom: 20px; border: 1px solid var(--border-color);">
                     <div style="font-size: 10px; font-weight: 800; color: #F8D210; text-transform: uppercase; margin-bottom: 8px;">
                         <i class="fa fa-robot"></i> HUGGING FACE FALLBACK
@@ -666,6 +669,4 @@
     </div>
     <script src="./script.js"></script>
 </body>
-</html>
-
-
+    </html>
