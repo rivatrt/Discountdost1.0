@@ -38,6 +38,7 @@ const state = {
     groundingSources: [],
     loaderInterval: null,
     terminalInterval: null,
+    timerInterval: null,
     loaderProgress: 0,
     manualItems: [{name:"", price:""}, {name:"", price:""}, {name:"", price:""}],
     installPrompt: null,
@@ -223,8 +224,10 @@ window.app = {
     generatePuter: async (prompt, isJson = true) => {
         if (typeof puter === 'undefined') throw new Error("Puter.js not loaded");
         
-        // Use Puter Chat AI
-        const response = await puter.ai.chat(prompt);
+        // Fast Prompt: Simplify to reduce Puter's processing time
+        const fastPrompt = `You are a JSON API. Return valid JSON only. \n${prompt.substring(0, 1500)}`; 
+
+        const response = await puter.ai.chat(fastPrompt);
         const text = response?.message?.content || response?.toString() || "";
         
         if (isJson) {
@@ -276,7 +279,13 @@ window.app = {
         
         if(activeModelBadge) activeModelBadge.style.display = 'inline-flex';
 
-        // LAYER 1: GEMINI (High Speed)
+        // TIMER HELPER: Reset timer based on expected latency
+        const updateTimer = (seconds) => {
+            window.app.startTimer(seconds);
+        };
+
+        // LAYER 1: GEMINI (High Speed ~ 8-12s)
+        updateTimer(12);
         if (state.apiKeys && state.apiKeys.length > 0) {
             for (let m = 0; m < AI_MODELS.length; m++) {
                 const model = AI_MODELS[m];
@@ -317,8 +326,9 @@ window.app = {
         const dummyPayload = payloadFactory('dummy');
         const promptText = dummyPayload.contents[0].parts[0].text; 
 
-        // LAYER 2: HUGGING FACE (Backup)
+        // LAYER 2: HUGGING FACE (Backup ~ 25s)
         if (state.hfToken && type === 'text') {
+            updateTimer(25);
             if(modelNameText) modelNameText.innerText = "Hugging Face (Mistral)";
             try {
                 const hfData = await window.app.generateHuggingFace(promptText);
@@ -326,8 +336,9 @@ window.app = {
             } catch (hfErr) { console.warn("HF Failed:", hfErr); }
         }
 
-        // LAYER 3: PUTER.JS (Free / Unlimited)
+        // LAYER 3: PUTER.JS (Free / Unlimited ~ 35-45s)
         if (type === 'text') {
+            updateTimer(40);
             if(modelNameText) modelNameText.innerText = "Puter.js (Free Tier)";
             try {
                 const puterData = await window.app.generatePuter(promptText);
@@ -643,11 +654,14 @@ window.app = {
         const statusEl = document.getElementById('status-dynamic');
         const progressEl = document.getElementById('loader-progress');
         const activeModelBadge = document.getElementById('loader-active-model');
+        const timerEl = document.getElementById('loader-timer');
         
         if (show) {
             loader.style.display = 'flex';
             if(activeModelBadge) activeModelBadge.style.display = 'none'; 
             if(storeNameEl) storeNameEl.innerText = state.storeName || "Your Business";
+            if(timerEl) timerEl.innerText = ""; // Reset timer text initially
+
             let progress = 0;
             const statusSteps = isScanning 
                 ? ["Reading Files...", "Enhancing Image...", "Extracting Text...", "Finalizing OCR..."]
@@ -670,6 +684,10 @@ window.app = {
         } else {
             if (progressEl) progressEl.style.width = "100%";
             if (statusEl) statusEl.innerText = "Complete!";
+            // Reset Timer on finish
+            if(state.timerInterval) clearInterval(state.timerInterval);
+            if(timerEl) timerEl.innerText = "";
+
             setTimeout(() => {
                 loader.style.display = 'none';
                 clearInterval(state.tipInterval);
@@ -677,6 +695,29 @@ window.app = {
                 if (progressEl) progressEl.style.width = "0%";
             }, 500);
         }
+    },
+
+    // NEW: Real-time Countdown Timer Logic
+    startTimer: (duration) => {
+        let remaining = duration;
+        const el = document.getElementById('loader-timer');
+        if (!el) return;
+        
+        // Clear previous timer if running
+        if (state.timerInterval) clearInterval(state.timerInterval);
+        
+        // Initial set
+        el.innerText = `Est. Time: ${remaining}s`;
+        
+        state.timerInterval = setInterval(() => {
+            remaining--;
+            if(remaining <= 0) {
+                el.innerText = "Finishing up...";
+                clearInterval(state.timerInterval);
+            } else {
+                el.innerText = `Est. Time: ${remaining}s`;
+            }
+        }, 1000);
     },
 
     startAnalysis: async (manualText) => {
@@ -731,7 +772,13 @@ window.app = {
 
             if (!parsed.deals || !Array.isArray(parsed.deals)) parsed.deals = [];
             parsed.deals = parsed.deals.map(d => {
-                if (typeof d.items === 'string') d.items = [{name: d.items, price: d.deal_price}];
+                // Ensure real deal price matches sum of items
+                if (typeof d.items === 'string') {
+                    d.items = [{name: d.items, price: d.deal_price}];
+                } else if (Array.isArray(d.items)) {
+                    const totalRealVal = d.items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+                    if (totalRealVal > 0) d.deal_price = totalRealVal; 
+                }
                 return d;
             });
 
@@ -810,15 +857,21 @@ window.app = {
             s.deals.forEach((deal, idx) => {
                 let realVal = 0;
                 let itemsHtml = '';
+                
+                // RE-CALCULATE REAL VALUE FROM ITEMS
                 if (Array.isArray(deal.items)) {
                     deal.items.forEach(item => {
                         const p = Number(item.price) || 0;
                         realVal += p;
                         itemsHtml += `<div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding: 6px 0;"><div contenteditable="true" style="font-size: 13px; color: var(--text-sub); flex: 1;">${item.name}</div><div contenteditable="true" class="item-row-price" oninput="app.recalcItemTotal(this)" style="font-size: 13px; font-weight: 700; color: var(--text-main); width: 60px; text-align: right;">${p}</div></div>`;
                     });
-                } else { realVal = deal.deal_price; }
+                } else { 
+                    realVal = deal.deal_price; 
+                }
 
-                const price = deal.deal_price || 0;
+                // Force Deal Price to match Real Value initially (Gold Logic)
+                const price = realVal;
+                
                 const gold = Math.max(30, deal.gold || Math.round(price * 0.10));
                 const platformFee = Math.round(price * 0.10);
                 const gstOnFee = Math.round(platformFee * 0.18);
@@ -830,16 +883,27 @@ window.app = {
                         <div class="deal-header"><div style="font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px;">DEAL #${idx+1}</div><div class="deal-tag">GET ${window.app.fmt(gold)} GOLD</div></div>
                         <div class="deal-body">
                             <div contenteditable="true" style="font-size: 18px; font-weight: 800; margin-bottom: 12px; color: var(--text-main); line-height: 1.3;">${deal.title || 'Special Offer'}</div>
-                            <div style="background: var(--bg-input); border-radius: 8px; padding: 10px; margin-bottom: 15px;">
-                                <div style="font-size: 9px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Includes (Edit Price to Update)</div>
-                                ${itemsHtml}
-                                <div style="display: flex; justify-content: space-between; padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--border-color);"><div style="font-size: 11px; font-weight: 800;">Real Value Total</div><div class="real-value-display" style="font-size: 12px; font-weight: 800;">${window.app.fmt(realVal)}</div></div>
+                            
+                            <!-- ITEMS CLIPS (Visual Summary) -->
+                            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px;">
+                                ${(Array.isArray(deal.items) ? deal.items.slice(0,3).map(i => 
+                                    `<div style="font-size: 10px; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 12px; color: var(--text-sub); border: 1px solid rgba(255,255,255,0.05);">${i.name}</div>`
+                                ).join('') : '')}
+                                ${(Array.isArray(deal.items) && deal.items.length > 3) ? `<div style="font-size: 10px; opacity: 0.5;">+${deal.items.length - 3} more</div>` : ''}
                             </div>
-                            <div class="deal-price-box"><div><div class="price-label">Deal Price (You Set)</div><div contenteditable="true" oninput="app.updateDealMath(this)" class="deal-price-edit" style="font-size: 20px; font-weight: 800; color: var(--brand); letter-spacing: -0.5px;">${window.app.fmt(price)}</div></div><div style="text-align: right;"><div class="price-label">Net Earning</div><div class="val-net" style="font-size: 16px; font-weight: 800; color: #00E676;">${window.app.fmt(net)}</div></div></div>
-                            <div style="text-align: center; margin-top: 10px;"><div class="tap-hint">TAP FOR PROFIT MATH <i class="fa fa-chevron-down"></i></div></div>
+
+                            <div class="deal-price-box"><div><div class="price-label">Deal Price (Full Value)</div><div contenteditable="true" oninput="app.updateDealMath(this)" class="deal-price-edit" style="font-size: 20px; font-weight: 800; color: var(--brand); letter-spacing: -0.5px;">${window.app.fmt(price)}</div></div><div style="text-align: right;"><div class="price-label">Net Earning</div><div class="val-net" style="font-size: 16px; font-weight: 800; color: #00E676;">${window.app.fmt(net)}</div></div></div>
+                            <div style="text-align: center; margin-top: 10px;"><div class="tap-hint">TAP TO SEE BREAKDOWN <i class="fa fa-chevron-down"></i></div></div>
                         </div>
                         <div class="math-breakdown">
                              <div style="padding: 20px;">
+                                <!-- DETAILED ITEM BREAKDOWN INSIDE -->
+                                <div style="background: var(--bg-input); border-radius: 8px; padding: 10px; margin-bottom: 15px;">
+                                    <div style="font-size: 9px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Item Breakdown</div>
+                                    ${itemsHtml}
+                                    <div style="display: flex; justify-content: space-between; padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--border-color);"><div style="font-size: 11px; font-weight: 800;">Total Real Value</div><div class="real-value-display" style="font-size: 12px; font-weight: 800;">${window.app.fmt(realVal)}</div></div>
+                                </div>
+
                                 <div class="math-row"><div class="math-label">Customer Pays</div><div class="math-val val-bill">${window.app.fmt(price)}</div></div>
                                 <div class="math-row"><div class="math-label">Gold Reward (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-gold">${goldPct}</span>%)</div><div class="math-val val-gold" style="color:#FFB300;">- ${window.app.fmt(gold)}</div></div>
                                 <div class="math-row"><div class="math-label">Platform Fee (<span contenteditable="true" oninput="app.updateDealMath(this)" class="edit-pct pct-fee">10</span>%)</div><div class="math-val val-fee" style="color:#FF5722;">- ${window.app.fmt(platformFee)}</div></div>
@@ -856,7 +920,6 @@ window.app = {
         html += `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; margin-top: 40px;"><div style="width: 24px; height: 24px; background: #FFC107; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: black; font-size: 12px;"><i class="fa fa-gift"></i></div><span style="font-size: 11px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase;">Gold Vouchers (Retention)</span></div><div style="display: flex; overflow-x: auto; gap: 15px; padding-bottom: 20px; scroll-snap-type: x mandatory;">`;
         if (s.vouchers && s.vouchers.length > 0) {
             s.vouchers.forEach((v, i) => {
-                // ROBUST FORMATTING FIX
                 const amount = window.app.fmt(Number(v.amount) || 0);
                 const threshold = window.app.fmt(Number(v.threshold) || 0);
                 
@@ -883,4 +946,4 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', window.app.init);
 } else {
     window.app.init();
-                       }
+            }
